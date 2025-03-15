@@ -1,7 +1,7 @@
 {
   "name": "tiles-hello-world",
   "version": "1.0.0",
-  "description": "Integration of Unternet web applets with mcp.run serverlets",
+  "description": "A new interface for crafting personal software",
   "main": "index.ts",
   "scripts": {
     "start": "bun run index.ts",

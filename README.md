@@ -1,6 +1,6 @@
 # Tiles - Web Applet + MCP.run Integration
 
-This project demonstrates the integration of Unternet web applets with mcp.run serverlets.
+A new interface for crafting personal software
 
 ## Features
 

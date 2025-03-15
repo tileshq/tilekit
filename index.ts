@@ -313,7 +313,7 @@ const server = Bun.serve({
 // Web Applet Manifest
 const appletManifest = {
   name: "Tiles Applet",
-  description: "A web applet that integrates with mcp.run serverlets for greeting and HTML-to-Markdown conversion",
+  description: "A new interface for crafting personal software",
   version: "1.0.0",
   actions: [
     {
@@ -355,6 +355,7 @@ const appletHtml = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A new interface for crafting personal software">
   <title>Tiles - Web Applet + MCP.run Integration</title>
   <style>
     body {
