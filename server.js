@@ -3,7 +3,11 @@ import { serve } from "bun";
 import fs from 'node:fs';
 import path from 'node:path';
 
+<<<<<<< HEAD
 const port = process.env.PORT || 3001;
+=======
+const port = process.env.PORT || 3000;
+>>>>>>> b180d120619920d63c8642a52950c1ed7789b562
 
 // Create a simple HTTP server
 const server = serve({
