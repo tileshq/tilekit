@@ -4,7 +4,9 @@
   "description": "Integration of Unternet web applets with mcp.run serverlets",
   "main": "index.ts",
   "scripts": {
-    "start": "bun run index.ts"
+    "start": "bun run index.ts",
+    "build": "bun build index.ts --outdir ./build",
+    "buildcmd": "bun build index.ts --outdir ./build"
   },
   "dependencies": {
     "@dylibso/mcpx": "^0.27.0",
