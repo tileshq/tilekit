@@ -5,8 +5,8 @@
   "main": "index.ts",
   "scripts": {
     "start": "bun run index.ts",
-    "build": "bun build index.ts --outdir ./build",
-    "buildcmd": "bun build index.ts --outdir ./build"
+    "build": "bun run build.js",
+    "serve": "bun run server.js"
   },
   "dependencies": {
     "@dylibso/mcpx": "^0.27.0",

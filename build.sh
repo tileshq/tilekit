@@ -1,2 +1,2 @@
 #!/bin/sh
-bun build index.ts --outdir ./build 
+bun run build.js 

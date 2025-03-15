@@ -1,66 +1,81 @@
-# Tiles - Web Applets + MCP.run Serverlets Integration
+# Tiles - Web Applet + MCP.run Integration
 
-This example demonstrates how to integrate [Unternet Web Applets](https://github.com/unternet-organization/web-applets) with [MCP.run Serverlets](https://github.com/dylibso/mcp.run-servlets) running client-side using the `@dylibso/mcpx` package.
+This project demonstrates the integration of Unternet web applets with mcp.run serverlets.
 
-## Integration Approach
+## Features
 
-This example demonstrates a simple web application that:
+- Greeting serverlet: Greet a person by name
+- HTML to Markdown serverlet: Convert a webpage to markdown format
 
-1. Provides a web applet interface with a defined action (`greet`)
-2. Implements the Web Applets protocol for communication
-3. Calls a simulated MCP.run serverlet on the client side
+## Prerequisites
 
-## Key Components
+- [Bun](https://bun.sh/) (v1.0.0 or higher)
 
-- **Web Applet Interface**: Follows the Web Applets specification for defining actions and handling messages
-- **MCP.run Serverlet API**: Simulates the behavior of a serverlet using the same response format
-- **Client-Side Integration**: Shows how serverlet calls can be made from the browser
+## Installation
 
-## Running the Example
-
-1. Install dependencies:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/tiles.git
+   cd tiles
    ```
+
+2. Install dependencies:
+   ```bash
    bun install
    ```
 
-2. Start the server:
-   ```
-   bun start
-   ```
+## Development
 
-3. Open http://localhost:3000 in your browser
+To run the development server:
 
-## Extending the Example
-
-To create a more sophisticated integration:
-
-1. Create a real MCP.run serverlet using the Extism PDK
-2. Use the `@dylibso/mcpx` package to load and execute the serverlet
-3. Build a more complex Web Applet that leverages multiple serverlet capabilities
-
-## Architecture
-
-```
-┌─────────────────┐      ┌─────────────────┐
-│                 │      │                 │
-│   Web Applet    │<────>│   MCP.run SDK   │
-│   (Frontend)    │      │   (Client-side) │
-│                 │      │                 │
-└─────────────────┘      └─────────────────┘
-        ^                        ^
-        │                        │
-        │                        │
-        v                        v
-┌─────────────────────────────────────────┐
-│                                         │
-│         Messaging Protocol              │
-│     (Actions, Data, Events, etc.)       │
-│                                         │
-└─────────────────────────────────────────┘
+```bash
+bun run start
 ```
 
-## Resources
+This will start the server at http://localhost:3000.
 
-- [Web Applets Documentation](https://unternet.co/docs/web-applets/introduction)
-- [MCP.run Serverlets Repository](https://github.com/dylibso/mcp.run-servlets)
-- [Model Context Protocol](https://modelcontextprotocol.github.io/)
+## Building
+
+To build the project:
+
+```bash
+bun run build
+```
+
+This will:
+1. Build the JavaScript bundle
+2. Extract the HTML, JavaScript, and manifest from the source code
+3. Save them to the `build` directory
+
+## Serving the Built Files
+
+To serve the built files:
+
+```bash
+bun run serve
+```
+
+This will start a server at http://localhost:3000 that serves the files from the `build` directory.
+
+## Project Structure
+
+- `index.ts`: Main entry point for the application
+- `build.js`: Build script to extract HTML and JavaScript from index.ts
+- `server.js`: Server script to serve the built files
+- `build/`: Directory containing the built files
+  - `index.html`: HTML file for the web applet
+  - `applet.js`: JavaScript file for the web applet
+  - `manifest.json`: Manifest file for the web applet
+  - `index.js`: Built JavaScript bundle
+
+## MCP.run Integration
+
+This project demonstrates how to integrate with mcp.run serverlets. It includes:
+
+1. Session management with MCP
+2. Calling MCP tools with proper error handling
+3. Fallback to mock implementations for demonstration purposes
+
+## License
+
+See the [LICENSE](LICENSE) file for details.
