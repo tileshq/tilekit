@@ -1,0 +1,17 @@
+{
+  "name": "tiles-hello-world",
+  "version": "1.0.0",
+  "description": "Integration of Unternet web applets with mcp.run serverlets",
+  "main": "index.ts",
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "@dylibso/mcpx": "^0.27.0",
+    "@web-applets/sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "type": "module"
+}
