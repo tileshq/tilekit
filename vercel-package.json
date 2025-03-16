@@ -1,0 +1,12 @@
+{
+  "name": "chat-mcp-vercel",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "chmod +x vercel-build.sh && ./vercel-build.sh",
+    "start": "cd chat-mcp && npm start"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
