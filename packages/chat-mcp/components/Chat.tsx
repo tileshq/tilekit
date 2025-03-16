@@ -214,6 +214,20 @@ export default function Chat() {
           </form>
         </div>
       </main>
+      
+      {/* Footer with tiles logo */}
+      <footer className="border-t border-teal-200 py-3 px-4 bg-teal-200 bg-opacity-80 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto flex items-center justify-start">
+          <div className="relative h-5 w-5 sm:h-6 sm:w-6" style={{ transform: 'scale(0.3)' }}>
+            <img 
+              src="/assets/icon.png" 
+              alt="Tiles Logo" 
+              className="h-full w-auto object-contain"
+              style={{ filter: 'brightness(0) saturate(100%) invert(13%) sepia(93%) saturate(7466%) hue-rotate(0deg) brightness(119%) contrast(119%)' }}
+            />
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
