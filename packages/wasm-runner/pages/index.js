@@ -618,7 +618,7 @@ export default function Home() {
     <div className="container">
       <Head>
         <title>tiles.run </title>
-        <meta name="description" content="Run WASM plugins with Extism" />
+        <meta name="description" content="A local-first, multiplayer-enabled MCP client with a notebook interface for making personal software." />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
 
@@ -992,7 +992,7 @@ export default function Home() {
       </main>
 
       <footer className="footer">
-        <p>Building an interface for local-first, web-like personal software.This is a  prototypes towards making a local-first, multiplayer-enabled MCP client with a notebook interface.</p>
+        <p>Building an interface for local-first, web-like personal software. This is a  prototype towards making a local-first, multiplayer-enabled MCP client with a notebook interface.</p>
         <div className="builder-links">
           A dev build by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
         </div>
