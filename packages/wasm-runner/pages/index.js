@@ -628,7 +628,7 @@ export default function Home() {
           <h1>tiles.run</h1>
         </div>
 
-        <h4 style={{ textAlign: 'center' }}>Create and run artefacts locally with MCP servlets</h4>
+        <h4 style={{ textAlign: 'center' }}>Run WebAssembly packaged MCP serverlets locally</h4>
         
         <div className="card">
           <h2>1. Select the MCP servlet</h2>
@@ -992,9 +992,9 @@ export default function Home() {
       </main>
 
       <footer className="footer">
-        <p>Building an interface for local-first, web-like personal software. Currently, we're shipping prototypes toward a local-first, multiplayer-enabled MCP client with a notebook interface.</p>
+        <p>Building an interface for local-first, web-like personal software.This is a  prototypes towards making a local-first, multiplayer-enabled MCP client with a notebook interface.</p>
         <div className="builder-links">
-          Built by <a href="https://ankeshbharti.com" className="builder-link">Ankesh Bharti</a> and <a href="https://aswinc.blog" className="builder-link">Aswin C</a>
+          A dev build by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
         </div>
       </footer>
 
