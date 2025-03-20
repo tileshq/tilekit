@@ -617,7 +617,7 @@ export default function Home() {
   return (
     <div className="container">
       <Head>
-        <title>tilekit.dev </title>
+        <title>tilekit</title>
         <meta name="description" content="A local-first, multiplayer-enabled MCP client with a notebook interface for making personal software." />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
@@ -625,7 +625,7 @@ export default function Home() {
       <main>
         <div className="title-container">
           <img src="/icons/tilekit.svg" alt="tilekit.dev logo" className="title-icon" />
-          <h1>tilekit.dev</h1>
+          <h1>Tilekit</h1>
         </div>
         
         <p className="subtitle">The present demo shows WebAssembly packaged MCP serverlets running locally.</p>
@@ -992,7 +992,7 @@ export default function Home() {
       </main>
 
       <footer className="footer">
-      Tilekit is the underlying personal software runtime that powers the <a href="https://tiles.run/">tiles.run</a> notebook interface.
+      Tilekit is the underlying personal software runtime that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface.
       <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
       </footer>
 
