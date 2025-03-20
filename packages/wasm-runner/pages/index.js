@@ -624,11 +624,11 @@ export default function Home() {
 
       <main>
         <div className="title-container">
-          <img src="/icons/icon.png" alt="tiles.run icon" className="title-icon" />
+          <img src="/icons/tilekit.svg" alt="tilekit.dev logo" className="title-icon" />
           <h1>tilekit.dev</h1>
         </div>
-
-        <h4 style={{ textAlign: 'center' }}>Run WebAssembly packaged MCP serverlets locally</h4>
+        
+        <p className="subtitle">The present demo shows WebAssembly packaged MCP serverlets running locally.</p>
         
         <div className="card">
           <h2>1. Select the MCP servlet</h2>
@@ -992,10 +992,8 @@ export default function Home() {
       </main>
 
       <footer className="footer">
-        <p>This is a dev prototype towards making a local-first, multiplayer-enabled MCP client with a notebook interface <a href="https://tiles.run/">tiles.run</a>.</p>
-        <div className="builder-links">
-          A dev build by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
-        </div>
+      Tilekit is the underlying personal software runtime that powers the <a href="https://tiles.run/">tiles.run</a> notebook interface.
+      <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
       </footer>
 
       <style jsx>{`
@@ -1021,10 +1019,18 @@ export default function Home() {
         h1 {
           margin: 0 0 1.5rem;
           line-height: 1.15;
-          font-size: 2.5rem;
-          text-align: center;
+          font-size: 3rem;
+          font-weight: 700;
         }
 
+        .subtitle {
+          text-align: center;
+          color: #666;
+          margin-bottom: 2rem;
+          font-size: 1.1rem;
+          max-width: 90%;
+        }
+        
         .card {
           margin: 1rem 0;
           padding: 1.5rem;
@@ -1467,6 +1473,15 @@ export default function Home() {
           width: 40px;
           height: 40px;
           object-fit: contain;
+          display: flex;
+          align-self: center;
+        }
+
+        h1 {
+          margin: 0;
+          line-height: 1;
+          display: flex;
+          align-self: center;
         }
 
         .builder-links {
