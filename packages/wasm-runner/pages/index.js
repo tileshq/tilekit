@@ -617,7 +617,7 @@ export default function Home() {
   return (
     <div className="container">
       <Head>
-        <title>tiles.run </title>
+        <title>tilekit.dev </title>
         <meta name="description" content="A local-first, multiplayer-enabled MCP client with a notebook interface for making personal software." />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
@@ -625,7 +625,7 @@ export default function Home() {
       <main>
         <div className="title-container">
           <img src="/icons/icon.png" alt="tiles.run icon" className="title-icon" />
-          <h1>tiles.run</h1>
+          <h1>tilekit.dev</h1>
         </div>
 
         <h4 style={{ textAlign: 'center' }}>Run WebAssembly packaged MCP serverlets locally</h4>
@@ -992,7 +992,7 @@ export default function Home() {
       </main>
 
       <footer className="footer">
-        <p>Tiles is an interface for local-first, web-like personal software. This is a  prototype towards making a local-first, multiplayer-enabled MCP client with a notebook interface.</p>
+        <p>This is a dev prototype towards making a local-first, multiplayer-enabled MCP client with a notebook interface <a href="https://tiles.run/">https://tiles.run/</a>.</p>
         <div className="builder-links">
           A dev build by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
         </div>
