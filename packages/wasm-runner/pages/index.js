@@ -618,7 +618,7 @@ export default function Home() {
     <div className="container">
       <Head>
         <title>tilekit</title>
-        <meta name="description" content="A local-first, multiplayer-enabled MCP client with a notebook interface for making personal software." />
+        <meta name="description" content="Personal software framework that powers the tiles.run notebook interface." />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
 
