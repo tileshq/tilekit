@@ -68,6 +68,10 @@ const Home: NextPage = () => {
   const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const [agentMode, setAgentMode] = useState<boolean>(true);
   const [artifactData, setArtifactData] = useState<ArtifactData | null>(null);
+  const [allowedHosts, setAllowedHosts] = useState<string>('');
+  const [allowedPaths, setAllowedPaths] = useState<string>('');
+  const [logLevel, setLogLevel] = useState<string>('');
+  const [runInWorker, setRunInWorker] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
@@ -528,11 +532,39 @@ const Home: NextPage = () => {
         }
       }
 
-      // Create the plugin
-      const plugin = await createPlugin(arrayBuffer, {
+      // Setup plugin options
+      const pluginOptions: any = {
         useWasi: true,
-        config: configObj
-      });
+        config: configObj,
+        runInWorker: runInWorker
+      };
+      
+      // Add allowed hosts if provided
+      if (allowedHosts.trim()) {
+        pluginOptions.allowedHosts = allowedHosts.split(',').map(host => host.trim());
+      }
+      
+      // Add allowed paths if provided
+      if (allowedPaths.trim()) {
+        pluginOptions.allowedPaths = {};
+        for (const pathPair of allowedPaths.split(',')) {
+          const [hostPath, guestPath] = pathPair.split(':').map(p => p.trim());
+          if (hostPath && guestPath) {
+            pluginOptions.allowedPaths[hostPath] = guestPath;
+          } else {
+            throw new Error(`Invalid path format: ${pathPair}. Should be /host/path:/guest/path`);
+          }
+        }
+      }
+      
+      // Add logger if log level is provided
+      if (logLevel.trim()) {
+        pluginOptions.logger = console;
+        pluginOptions.logLevel = logLevel;
+      }
+
+      // Create the plugin
+      const plugin = await createPlugin(arrayBuffer, pluginOptions);
 
       // Run the function
       let outputBuffer;
@@ -610,12 +642,39 @@ const Home: NextPage = () => {
       // Prepare servlet info
       const contentAddress = servletMetadata.meta?.lastContentAddress || 
                             (servletMetadata.binding?.contentAddress);
+      
+      // Prepare plugin options
+      const pluginOptions: any = {
+        functionName: servletMetadata.interface?.function || selectedFunction || 'call',
+        config: config ? JSON.parse(config) : {},
+        runInWorker
+      };
+      
+      // Add allowed hosts if provided
+      if (allowedHosts.trim()) {
+        pluginOptions.allowedHosts = allowedHosts.split(',').map(host => host.trim());
+      }
+      
+      // Add allowed paths if provided
+      if (allowedPaths.trim()) {
+        pluginOptions.allowedPaths = {};
+        for (const pathPair of allowedPaths.split(',')) {
+          const [hostPath, guestPath] = pathPair.split(':').map(p => p.trim());
+          if (hostPath && guestPath) {
+            pluginOptions.allowedPaths[hostPath] = guestPath;
+          }
+        }
+      }
+      
+      // Add log level if provided
+      if (logLevel.trim()) {
+        pluginOptions.logLevel = logLevel;
+      }
                             
       const servletInfoList = [{
         slug: selectedServlet,
         contentAddress,
-        functionName: servletMetadata.interface?.function || selectedFunction || 'call',
-        config: config ? JSON.parse(config) : {}
+        ...pluginOptions
       }];
       
       // Call the conversation API
@@ -910,6 +969,68 @@ const Home: NextPage = () => {
                     />
                   </label>
                 </div>
+                
+                <div className="advanced-options-toggle">
+                  <details>
+                    <summary>Advanced Options</summary>
+                    <div className="advanced-options">
+                      <div className="input-group">
+                        <label>
+                          Allowed Hosts (comma separated):
+                          <input
+                            type="text"
+                            value={allowedHosts}
+                            onChange={(e) => setAllowedHosts(e.target.value)}
+                            placeholder="example.com,api.example.org"
+                            className="small-input"
+                          />
+                        </label>
+                      </div>
+                      
+                      <div className="input-group">
+                        <label>
+                          Allowed Paths (host:guest, comma separated):
+                          <input
+                            type="text"
+                            value={allowedPaths}
+                            onChange={(e) => setAllowedPaths(e.target.value)}
+                            placeholder="/host/path:/guest/path,/another/host:/another/guest"
+                            className="small-input"
+                          />
+                        </label>
+                      </div>
+                      
+                      <div className="input-group">
+                        <label>
+                          Log Level:
+                          <select 
+                            value={logLevel}
+                            onChange={(e) => setLogLevel(e.target.value)}
+                            className="small-select"
+                          >
+                            <option value="">-- None --</option>
+                            <option value="error">Error</option>
+                            <option value="warn">Warning</option>
+                            <option value="info">Info</option>
+                            <option value="debug">Debug</option>
+                            <option value="trace">Trace</option>
+                          </select>
+                        </label>
+                      </div>
+                      
+                      <div className="input-group">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={runInWorker}
+                            onChange={(e) => setRunInWorker(e.target.checked)}
+                          />
+                          Run in Web Worker (Recommended)
+                        </label>
+                      </div>
+                    </div>
+                  </details>
+                </div>
               </div>
               
               {conversationHistory.length > 0 && (
@@ -1006,6 +1127,58 @@ const Home: NextPage = () => {
                     placeholder='{"key": "value"}'
                     rows={3}
                   />
+                </label>
+              </div>
+              
+              <div className="input-group">
+                <label>
+                  Allowed Hosts (comma separated):
+                  <input
+                    type="text"
+                    value={allowedHosts}
+                    onChange={(e) => setAllowedHosts(e.target.value)}
+                    placeholder="example.com,api.example.org"
+                  />
+                </label>
+              </div>
+              
+              <div className="input-group">
+                <label>
+                  Allowed Paths (host:guest, comma separated):
+                  <input
+                    type="text"
+                    value={allowedPaths}
+                    onChange={(e) => setAllowedPaths(e.target.value)}
+                    placeholder="/host/path:/guest/path,/another/host:/another/guest"
+                  />
+                </label>
+              </div>
+              
+              <div className="input-group">
+                <label>
+                  Log Level:
+                  <select 
+                    value={logLevel}
+                    onChange={(e) => setLogLevel(e.target.value)}
+                  >
+                    <option value="">-- None --</option>
+                    <option value="error">Error</option>
+                    <option value="warn">Warning</option>
+                    <option value="info">Info</option>
+                    <option value="debug">Debug</option>
+                    <option value="trace">Trace</option>
+                  </select>
+                </label>
+              </div>
+              
+              <div className="input-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={runInWorker}
+                    onChange={(e) => setRunInWorker(e.target.checked)}
+                  />
+                  Run in Web Worker (Recommended)
                 </label>
               </div>
 
@@ -1114,6 +1287,44 @@ const Home: NextPage = () => {
           margin-top: 0.25rem;
           border: 1px solid #ddd;
           border-radius: 4px;
+        }
+        
+        input[type="checkbox"] {
+          width: auto;
+          margin-right: 0.5rem;
+        }
+        
+        .checkbox-label {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+        }
+        
+        .advanced-options-toggle {
+          margin-top: 1rem;
+        }
+        
+        .advanced-options-toggle summary {
+          cursor: pointer;
+          color: #0070f3;
+          font-size: 0.9rem;
+          padding: 0.5rem 0;
+        }
+        
+        .advanced-options-toggle summary:hover {
+          text-decoration: underline;
+        }
+        
+        .advanced-options {
+          background-color: #f5f5f5;
+          padding: 0.75rem;
+          border-radius: 4px;
+          margin-top: 0.5rem;
+        }
+        
+        .small-input, .small-select {
+          font-size: 0.9rem;
+          padding: 0.4rem;
         }
         
         .servlet-select {

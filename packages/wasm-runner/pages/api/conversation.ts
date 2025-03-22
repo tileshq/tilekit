@@ -9,6 +9,10 @@ interface ServletInfo {
   contentAddress?: string;
   functionName?: string;
   config?: Record<string, any>;
+  allowedHosts?: string[];
+  allowedPaths?: Record<string, string>;
+  logLevel?: string;
+  runInWorker?: boolean;
   meta?: {
     schema?: {
       description?: string;
@@ -136,11 +140,34 @@ For each tool call, structure your response to:
         // Import dynamically since we're in a server environment
         const { createPlugin } = await import('extism');
         
-        // Create the plugin
-        const plugin = await createPlugin(buffer, {
+        // Setup plugin options
+        const pluginOptions: any = {
           useWasi: true,
           config: config || {}
-        });
+        };
+        
+        // Add additional options if provided
+        if (servletInfo.allowedHosts && servletInfo.allowedHosts.length > 0) {
+          pluginOptions.allowedHosts = servletInfo.allowedHosts;
+        }
+        
+        if (servletInfo.allowedPaths && Object.keys(servletInfo.allowedPaths).length > 0) {
+          pluginOptions.allowedPaths = servletInfo.allowedPaths;
+        }
+        
+        if (servletInfo.logLevel) {
+          pluginOptions.logger = console;
+          pluginOptions.logLevel = servletInfo.logLevel;
+        }
+        
+        if (servletInfo.runInWorker !== undefined) {
+          pluginOptions.runInWorker = servletInfo.runInWorker;
+        }
+        
+        console.log(`Creating plugin with options:`, JSON.stringify(pluginOptions));
+        
+        // Create the plugin
+        const plugin = await createPlugin(buffer, pluginOptions);
         
         pluginInstances[slug] = {
           plugin,
