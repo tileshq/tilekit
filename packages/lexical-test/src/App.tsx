@@ -10,7 +10,6 @@ import {AutoFocusPlugin} from '@lexical/react/LexicalAutoFocusPlugin';
 import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {ContentEditable} from '@lexical/react/LexicalContentEditable';
 import {LexicalErrorBoundary} from '@lexical/react/LexicalErrorBoundary';
-import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
 import {RichTextPlugin} from '@lexical/react/LexicalRichTextPlugin';
 import {
   $isTextNode,
@@ -27,7 +26,8 @@ import {
 
 import ExampleTheme from './ExampleTheme';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
-import TreeViewPlugin from './plugins/TreeViewPlugin';
+import ApiPlugin from './plugins/ApiPlugin';
+import DraggableBlockPlugin from './plugins/DraggableBlockPlugin';
 import {parseAllowedColor, parseAllowedFontSize} from './styleConfig';
 
 const placeholder = 'Enter some rich text...';
@@ -160,6 +160,8 @@ export default function App() {
             ErrorBoundary={LexicalErrorBoundary}
           />
           <AutoFocusPlugin />
+          <ApiPlugin />
+          <DraggableBlockPlugin />
         </div>
       </div>
     </LexicalComposer>
