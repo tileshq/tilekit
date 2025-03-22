@@ -1,24 +1,75 @@
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { createPortal } from 'react-dom';
+import type { NextPage } from 'next';
 
-export default function Home() {
-  const [wasmFile, setWasmFile] = useState(null);
-  const [result, setResult] = useState('');
-  const [input, setInput] = useState('');
-  const [config, setConfig] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [servletLoading, setServletLoading] = useState(false);
-  const [selectedFunction, setSelectedFunction] = useState('call');
-  const [servlets, setServlets] = useState([]);
-  const [selectedServlet, setSelectedServlet] = useState('');
-  const [servletMetadata, setServletMetadata] = useState(null);
-  const [message, setMessage] = useState('');
-  const [conversationHistory, setConversationHistory] = useState([]);
-  const [agentMode, setAgentMode] = useState(true);
-  const [artifactData, setArtifactData] = useState(null);
-  const fileInputRef = useRef(null);
-  const iframeRef = useRef(null);
+interface Servlet {
+  slug: string;
+  name?: string;
+  description?: string;
+  tags?: string[];
+  created?: string;
+  updated?: string;
+  meta?: {
+    author?: string;
+    version?: string;
+    license?: string;
+    lastContentAddress?: string;
+    schema?: {
+      tools?: Array<{
+        name: string;
+        description: string;
+        inputSchema: {
+          type: string;
+          properties: Record<string, any>;
+          required?: string[];
+        };
+      }>
+    };
+  };
+  binding?: {
+    contentAddress?: string;
+  };
+  interface?: {
+    function?: string;
+  };
+}
+
+interface ArtifactData {
+  toolName: string;
+  result: any;
+  isError?: boolean;
+}
+
+interface ToolResult {
+  toolName: string;
+  result?: any;
+  error?: string;
+}
+
+interface ConversationMessage {
+  role: string;
+  content: any;
+  type?: string;
+}
+
+const Home: NextPage = () => {
+  const [wasmFile, setWasmFile] = useState<File | null>(null);
+  const [result, setResult] = useState<string>('');
+  const [input, setInput] = useState<string>('');
+  const [config, setConfig] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [servletLoading, setServletLoading] = useState<boolean>(false);
+  const [selectedFunction, setSelectedFunction] = useState<string>('call');
+  const [servlets, setServlets] = useState<Servlet[]>([]);
+  const [selectedServlet, setSelectedServlet] = useState<string>('');
+  const [servletMetadata, setServletMetadata] = useState<Servlet | null>(null);
+  const [message, setMessage] = useState<string>('');
+  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
+  const [agentMode, setAgentMode] = useState<boolean>(true);
+  const [artifactData, setArtifactData] = useState<ArtifactData | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   
   // Fetch servlets when component mounts
   useEffect(() => {
@@ -50,7 +101,7 @@ export default function Home() {
   }, [artifactData]);
   
   // Function to generate artifact HTML for tool results
-  const generateArtifactHtml = (toolResult, toolName) => {
+  const generateArtifactHtml = (toolResult: any, toolName: string): string => {
     if (!toolResult) return '<div class="error">No result available</div>';
     
     let content = '';
@@ -131,7 +182,7 @@ export default function Home() {
     }
     
     // Helper function to format text content with syntax highlighting for code blocks
-    function formatTextContent(text) {
+    function formatTextContent(text: string): string {
       // Handle markdown-style code blocks
       const formattedText = text
         .replace(/\n```([a-z]*)\n([\s\S]*?)\n```/g, (match, language, code) => {
@@ -361,7 +412,7 @@ export default function Home() {
   };
 
   // Fetch list of servlets from mcp.run API
-  const fetchServlets = async () => {
+  const fetchServlets = async (): Promise<void> => {
     try {
       const response = await fetch('/api/proxy?path=servlets');
       if (!response.ok) {
@@ -371,12 +422,12 @@ export default function Home() {
       setServlets(data);
     } catch (error) {
       console.error("Error fetching servlets:", error);
-      setResult(`Error fetching servlets list: ${error.message}`);
+      setResult(`Error fetching servlets list: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
   // Fetch servlet content by slug
-  const fetchServletContent = async (slug) => {
+  const fetchServletContent = async (slug: string): Promise<void> => {
     if (!slug) return;
 
     setServletLoading(true);
@@ -412,14 +463,14 @@ export default function Home() {
       
     } catch (error) {
       console.error("Error fetching servlet content:", error);
-      setResult(`Error fetching servlet content: ${error.message}`);
+      setResult(`Error fetching servlet content: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setServletLoading(false);
     }
   };
 
   // Handle servlet selection
-  const handleServletChange = (e) => {
+  const handleServletChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     const servlet = e.target.value;
     setSelectedServlet(servlet);
     if (servlet) {
@@ -429,15 +480,15 @@ export default function Home() {
     }
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files.length > 0) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    if (e.target.files && e.target.files.length > 0) {
       setWasmFile(e.target.files[0]);
       setSelectedServlet(''); // Clear servlet selection when uploading a file
       setServletMetadata(null); // Clear servlet metadata
     }
   };
 
-  const handlePredefinedWasm = async (fileName) => {
+  const handlePredefinedWasm = async (fileName: string): Promise<void> => {
     try {
       const response = await fetch(`/wasm/${fileName}`);
       const buffer = await response.arrayBuffer();
@@ -447,11 +498,11 @@ export default function Home() {
       setServletMetadata(null); // Clear servlet metadata
     } catch (error) {
       console.error("Error loading predefined WASM:", error);
-      setResult(`Error loading ${fileName}: ${error.message}`);
+      setResult(`Error loading ${fileName}: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  const runWasm = async () => {
+  const runWasm = async (): Promise<void> => {
     if (!wasmFile) {
       setResult('Please select a WASM file or servlet first');
       return;
@@ -473,7 +524,7 @@ export default function Home() {
         try {
           configObj = JSON.parse(config);
         } catch (e) {
-          throw new Error(`Invalid config JSON: ${e.message}`);
+          throw new Error(`Invalid config JSON: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
 
@@ -495,20 +546,20 @@ export default function Home() {
       }
 
       // Get the text output
-      const output = outputBuffer.text();
+      const output = outputBuffer?.text() || '';
       setResult(output);
       
       // No need to call plugin.free() in this version of Extism
     } catch (error) {
       console.error("WASM execution error:", error);
-      setResult(`Error: ${error.message}`);
+      setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
     }
   };
   
   // Process natural language prompt using Claude and servlet tools
-  const processPrompt = async () => {
+  const processPrompt = async (): Promise<void> => {
     if (!selectedServlet || !servletMetadata) {
       setResult('Please select a servlet first');
       return;
@@ -528,20 +579,25 @@ export default function Home() {
     
     try {
       // Create tools from servlet metadata
-      const servletTools = [];
+      const servletTools: Array<{
+        name: string;
+        description: string;
+        inputSchema: any;
+        servletSlug: string;
+      }> = [];
       
       // Check if the servlet has tools defined in its metadata
       if (servletMetadata.meta?.schema?.tools && servletMetadata.meta.schema.tools.length > 0) {
         // Use the tools directly from the servlet metadata
         servletTools.push(...servletMetadata.meta.schema.tools.map(tool => ({
           ...tool,
-          name: tool.name.split('/').pop(),
+          name: tool.name.split('/').pop() || tool.name,
           servletSlug: selectedServlet
         })));
       } else {
         // Create a default tool for the servlet
         servletTools.push({
-          name: (servletMetadata.name || selectedServlet).split('/').pop(),
+          name: (servletMetadata.name || selectedServlet).split('/').pop() || selectedServlet,
           description: servletMetadata.description || `Execute ${selectedServlet} servlet`,
           inputSchema: {
             type: "object",
@@ -583,8 +639,8 @@ export default function Home() {
       
       // Display the final message
       setResult(data.finalMessage.content
-        .filter(block => block.type === 'text')
-        .map(block => block.text)
+        .filter((block: any) => block.type === 'text')
+        .map((block: any) => block.text)
         .join('\n'));
       
       // Set conversation history
@@ -592,12 +648,12 @@ export default function Home() {
       
       // Find tool results to display as artifacts
       const toolResults = data.conversationHistory.find(
-        msg => msg.role === 'user' && msg.type === 'tool_results'
+        (msg: ConversationMessage) => msg.role === 'user' && msg.type === 'tool_results'
       );
       
       if (toolResults && toolResults.content && toolResults.content.length > 0) {
         // Use the last tool result as the artifact
-        const lastToolResult = toolResults.content[toolResults.content.length - 1];
+        const lastToolResult: ToolResult = toolResults.content[toolResults.content.length - 1];
         setArtifactData({
           toolName: lastToolResult.toolName,
           result: lastToolResult.result || lastToolResult.error,
@@ -607,7 +663,7 @@ export default function Home() {
       
     } catch (error) {
       console.error("Error processing prompt:", error);
-      setResult(`Error: ${error.message}`);
+      setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
       setArtifactData(null);
     } finally {
       setIsLoading(false);
@@ -763,8 +819,8 @@ export default function Home() {
                               <ul>
                                 {Object.entries(tool.inputSchema.properties).map(([propName, propDetails]) => (
                                   <li key={propName}>
-                                    <code>{propName}</code> ({propDetails.type}): 
-                                    {propDetails.description && <span> {propDetails.description}</span>}
+                                    <code>{propName}</code> ({(propDetails as any).type}): 
+                                    {(propDetails as any).description && <span> {(propDetails as any).description}</span>}
                                   </li>
                                 ))}
                               </ul>
@@ -865,7 +921,7 @@ export default function Home() {
                         {msg.type === 'tool_results' ? (
                           <div className="tool-results">
                             <h4>Tool Results:</h4>
-                            {msg.content.map((tool, toolIndex) => (
+                            {(msg.content as ToolResult[]).map((tool, toolIndex) => (
                               <div key={toolIndex} className="tool-result-item">
                                 <div className="tool-result-header">
                                   <strong>{tool.toolName}:</strong>
@@ -891,13 +947,13 @@ export default function Home() {
                         ) : Array.isArray(msg.content) ? (
                           <div className="message-content">
                             {msg.content
-                              .filter(block => block.type === 'text')
-                              .map((block, blockIndex) => (
+                              .filter((block: any) => block.type === 'text')
+                              .map((block: any, blockIndex: number) => (
                                 <div key={blockIndex}>{block.text}</div>
                               ))}
                             {msg.content
-                              .filter(block => block.type === 'tool_use')
-                              .map((block, blockIndex) => (
+                              .filter((block: any) => block.type === 'tool_use')
+                              .map((block: any, blockIndex: number) => (
                                 <div key={blockIndex} className="tool-use">
                                   <strong>Using Tool: {block.name}</strong>
                                   <pre className="tool-use-input">
@@ -1533,4 +1589,6 @@ export default function Home() {
       `}</style>
     </div>
   );
-}
+};
+
+export default Home;

@@ -1,5 +1,14 @@
 // API route to proxy requests to mcp.run to avoid CORS issues
-export default async function handler(req, res) {
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+interface ErrorResponse {
+  error: string;
+}
+
+export default async function handler(
+  req: NextApiRequest, 
+  res: NextApiResponse<any | ErrorResponse | Buffer>
+) {
   const { path } = req.query;
   
   try {
@@ -37,4 +46,4 @@ export default async function handler(req, res) {
     console.error('Proxy error:', error);
     res.status(500).json({ error: 'Failed to fetch from external API' });
   }
-} 
+}

@@ -1,15 +1,72 @@
 import { Anthropic } from '@anthropic-ai/sdk';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Use global fetch instead of node-fetch
 const fetch = global.fetch;
 
-export default async function handler(req, res) {
+interface ServletInfo {
+  slug: string;
+  contentAddress?: string;
+  functionName?: string;
+  config?: Record<string, any>;
+  meta?: {
+    schema?: {
+      description?: string;
+      inputSchema?: {
+        properties?: Record<string, any>;
+        required?: string[];
+      };
+      tools?: any[];
+      name?: string;
+    };
+    description?: string;
+  };
+}
+
+interface ServletTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, any>;
+  servletSlug: string;
+}
+
+interface PluginInstance {
+  plugin: any;
+  functionName: string;
+  contentAddress?: string;
+}
+
+interface ToolUseSubmessage {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: any;
+}
+
+interface Message {
+  role: 'user' | 'assistant' | string;
+  content: any;
+  type?: string;
+}
+
+interface ErrorResponse {
+  error: string;
+}
+
+export default async function handler(
+  req: NextApiRequest, 
+  res: NextApiResponse<any | ErrorResponse>
+) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { prompt, servletTools, servletInfoList } = req.body;
+    const { prompt, servletTools, servletInfoList } = req.body as {
+      prompt: string;
+      servletTools: ServletTool[];
+      servletInfoList: ServletInfo[];
+    };
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -59,10 +116,14 @@ For each tool call, structure your response to:
 3. Interpret the results in a user-friendly way`;
 
     // Fetch and create actual plugin instances server-side
-    const pluginInstances = {};
+    const pluginInstances: Record<string, PluginInstance> = {};
     for (const servletInfo of servletInfoList) {
       try {
         const { slug, contentAddress, functionName, config } = servletInfo;
+        
+        if (!contentAddress) {
+          throw new Error('Content address is required');
+        }
         
         // Fetch the WASM file directly on the server
         const contentResponse = await fetch(`https://www.mcp.run/api/c/${contentAddress}`);
@@ -93,18 +154,18 @@ For each tool call, structure your response to:
     }
 
     // Start the conversation with the initial message
-    let messages = [
+    let messages: Message[] = [
       { role: 'user', content: prompt }
     ];
 
     // Keep track of conversation 
-    let conversationHistory = [{
+    let conversationHistory: Message[] = [{
       role: 'user',
       content: prompt
     }];
     
     let messageIdx = 1;  // Start after the first user message
-    let stopReason = null;
+    let stopReason: string | null = null;
     let response;
     let finalMessage = null;
     
@@ -116,7 +177,9 @@ For each tool call, structure your response to:
         max_tokens: 4096,
         temperature: 0.7,
         system: systemMessage,
+        // @ts-ignore - types are not properly updated for the Anthropic SDK
         messages,
+        // @ts-ignore - tools is supported but types may be outdated
         tools,
       });
 
@@ -137,16 +200,18 @@ For each tool call, structure your response to:
       }
 
       // Check if there are any tool use requests
-      const newMessage = { role: 'user', content: [] };
+      const newMessage: Message = { role: 'user', content: [] };
       let toolUseCount = 0;
       
       for (const submessage of response.content) {
-        if (submessage.type !== 'tool_use') {
+        // Type assertion to handle the comparison
+        if ((submessage as any).type !== 'tool_use') {
           continue;
         }
 
         ++toolUseCount;
-        const { id, input, name } = submessage;
+        // Cast to any first to avoid TypeScript errors
+        const { id, input, name } = submessage as any as ToolUseSubmessage;
 
         try {
           // Find the corresponding servlet tool
@@ -215,11 +280,13 @@ For each tool call, structure your response to:
         } catch (error) {
           console.error(`Error executing tool ${name}:`, error);
           
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
           // Add the error as a tool result
           newMessage.content.push({
             type: 'tool_result',
             tool_use_id: id,
-            content: `Error: ${error.message}`,
+            content: `Error: ${errorMessage}`,
             is_error: true
           });
           
@@ -230,14 +297,14 @@ For each tool call, structure your response to:
             content: [{
               toolName: name,
               input,
-              error: error.message
+              error: errorMessage
             }]
           });
         }
       }
 
       // If Claude is doing tool use, add the result as a user message and continue
-      if (response.stop_reason === 'tool_use') {
+      if (response.stop_reason === 'tool_use' as any) {
         messages.push(newMessage);
         continue;
       }
@@ -281,6 +348,6 @@ For each tool call, structure your response to:
     
   } catch (error) {
     console.error('Conversation API error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
