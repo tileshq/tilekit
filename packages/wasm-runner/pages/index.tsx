@@ -732,7 +732,7 @@ const Home: NextPage = () => {
   return (
     <div className="container">
       <Head>
-        <title>tilekit</title>
+        <title>Tilekit</title>
         <meta name="description" content="Personal software framework that powers the tiles.run notebook interface." />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
