@@ -1221,7 +1221,7 @@ const Home: NextPage = () => {
       </main>
 
       <footer className="footer">
-      Tilekit is the underlying personal software framework that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/feynon/tilekit/tree/dev/packages/wasm-runner" className="builder-link">feynon/tilekit</a>
+      Tilekit is the underlying personal software framework that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/Agent54/tilekit/tree/dev/packages/wasm-runner" className="builder-link">Agent54/tilekit</a>
       <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
       </footer>
 
