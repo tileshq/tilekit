@@ -1,5 +1,6 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { createWasmExecutorFromBuffer, WasmExecutorOptions } from '../../lib/wasm-executor';
 
 // Use global fetch instead of node-fetch
 const fetch = global.fetch;
@@ -119,8 +120,14 @@ For each tool call, structure your response to:
 2. Call the appropriate tool with the correct parameters
 3. Interpret the results in a user-friendly way`;
 
+    // Create a map to store plugin instances
+    const pluginInstances: Record<string, {
+      executor: any;
+      functionName: string;
+      contentAddress: string;
+    }> = {};
+
     // Fetch and create actual plugin instances server-side
-    const pluginInstances: Record<string, PluginInstance> = {};
     for (const servletInfo of servletInfoList) {
       try {
         const { slug, contentAddress, functionName, config } = servletInfo;
@@ -137,17 +144,15 @@ For each tool call, structure your response to:
         
         const buffer = await contentResponse.arrayBuffer();
         
-        // Import dynamically since we're in a server environment
-        const { createPlugin } = await import('extism');
-        
         // Setup plugin options
-        const pluginOptions: any = {
+        const pluginOptions: WasmExecutorOptions = {
           useWasi: true,
-          config: config || {}
+          config: config || {},
+          runInWorker: servletInfo.runInWorker
         };
         
         // Add additional options if provided
-        if (servletInfo.allowedHosts && servletInfo.allowedHosts.length > 0) {
+        if (servletInfo.allowedHosts?.length) {
           pluginOptions.allowedHosts = servletInfo.allowedHosts;
         }
         
@@ -156,27 +161,21 @@ For each tool call, structure your response to:
         }
         
         if (servletInfo.logLevel) {
-          pluginOptions.logger = console;
           pluginOptions.logLevel = servletInfo.logLevel;
         }
         
-        if (servletInfo.runInWorker !== undefined) {
-          pluginOptions.runInWorker = servletInfo.runInWorker;
-        }
-        
-        console.log(`Creating plugin with options:`, JSON.stringify(pluginOptions));
-        
-        // Create the plugin
-        const plugin = await createPlugin(buffer, pluginOptions);
+        // Create the executor
+        const executor = await createWasmExecutorFromBuffer(buffer, pluginOptions);
         
         pluginInstances[slug] = {
-          plugin,
+          executor,
           functionName: functionName || 'call',
           contentAddress
         };
         console.log(`Plugin created for ${servletInfo.slug}`);
-      } catch (err) {
-        console.error(`Failed to create plugin for ${servletInfo.slug}:`, err);
+      } catch (error) {
+        console.error(`Error creating plugin for ${servletInfo.slug}:`, error);
+        throw error;
       }
     }
 
@@ -195,6 +194,8 @@ For each tool call, structure your response to:
     let stopReason: string | null = null;
     let response;
     let finalMessage = null;
+
+    console.log(`Messages: ${JSON.stringify(tools)}`);
     
     // Agentic loop - continue running until we get a final message
     do {
@@ -249,7 +250,7 @@ For each tool call, structure your response to:
           
           const pluginInfo = pluginInstances[servletTool.servletSlug];
           if (!pluginInfo) {
-            throw new Error(`Plugin for servlet ${servletTool.servletSlug} not found or failed to load`);
+            throw new Error(`No plugin instance found for ${servletTool.servletSlug}`);
           }
           
           // Prepare the input for the servlet
@@ -263,35 +264,33 @@ For each tool call, structure your response to:
           console.log(`Executing tool ${name} with input:`, servletInput);
           
           // Execute the servlet using the plugin
-          const functionName = pluginInfo.functionName || 'call';
-          const outputBuffer = await pluginInfo.plugin.call(functionName, servletInput);
-          
-          // Get the result
-          const resultText = outputBuffer.text();
-          let result;
-          
-          try {
-            // Try to parse the result as JSON
-            result = JSON.parse(resultText);
-            // If the result has a content array with text, extract just the text
-            if (result.content && Array.isArray(result.content) && result.content.length > 0) {
-              const firstContent = result.content[0];
-              if (firstContent.type === 'text' && firstContent.text) {
-                result = firstContent.text;
-              }
-            }
-          } catch (e) {
-            // If parsing fails, use the raw text
-            result = resultText;
+          const executionResult = await pluginInfo.executor.execute(pluginInfo.functionName, servletInput);
+          if (executionResult.error) {
+            throw new Error(executionResult.error);
           }
           
-          console.log(`Tool ${name} result:`, typeof result === 'object' ? JSON.stringify(result) : result);
+          // Get the result
+          const resultText = executionResult.output;
+          let parsedResult;
           
-          // Add the tool result to the message
+          try {
+            // Try to parse as JSON if it looks like JSON
+            if (resultText.startsWith('{') && resultText.endsWith('}')) {
+              parsedResult = JSON.parse(resultText);
+            } else {
+              parsedResult = resultText;
+            }
+          } catch (e) {
+            parsedResult = resultText;
+          }
+          
+          console.log(`Tool ${name} result:`, typeof parsedResult === 'object' ? JSON.stringify(parsedResult) : parsedResult);
+          
+          // Add the tool result to the message - ensure content is a string
           newMessage.content.push({
             type: 'tool_result',
             tool_use_id: id,
-            content: result
+            content: typeof parsedResult === 'object' ? JSON.stringify(parsedResult) : String(parsedResult)
           });
           
           // Track for history display
@@ -301,7 +300,7 @@ For each tool call, structure your response to:
             content: [{
               toolName: name,
               input,
-              result
+              result: parsedResult
             }]
           });
         } catch (error) {
@@ -355,10 +354,10 @@ For each tool call, structure your response to:
     // Cleanup plugins
     for (const [_, pluginInfo] of Object.entries(pluginInstances)) {
       try {
-        if (pluginInfo.plugin) {
+        if (pluginInfo.executor) {
           // If there's a cleanup method available
-          if (typeof pluginInfo.plugin.free === 'function') {
-            pluginInfo.plugin.free();
+          if (typeof pluginInfo.executor.free === 'function') {
+            pluginInfo.executor.free();
           }
         }
       } catch (err) {

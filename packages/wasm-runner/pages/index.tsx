@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { createPortal } from 'react-dom';
 import type { NextPage } from 'next';
+import { createWasmExecutorFromFile, WasmExecutorOptions } from '../lib/wasm-executor';
 
 interface Servlet {
   slug: string;
@@ -516,27 +517,11 @@ const Home: NextPage = () => {
     setResult('');
 
     try {
-      // Dynamic import to avoid SSR issues
-      const { createPlugin } = await import('extism');
-      
-      // Read the file as an ArrayBuffer
-      const arrayBuffer = await wasmFile.arrayBuffer();
-      
-      // Parse config if provided
-      let configObj = {};
-      if (config.trim()) {
-        try {
-          configObj = JSON.parse(config);
-        } catch (e) {
-          throw new Error(`Invalid config JSON: ${e instanceof Error ? e.message : String(e)}`);
-        }
-      }
-
       // Setup plugin options
-      const pluginOptions: any = {
+      const pluginOptions: WasmExecutorOptions = {
         useWasi: true,
-        config: configObj,
-        runInWorker: runInWorker
+        config: config.trim() ? JSON.parse(config) : {},
+        runInWorker
       };
       
       // Add allowed hosts if provided
@@ -559,29 +544,21 @@ const Home: NextPage = () => {
       
       // Add logger if log level is provided
       if (logLevel.trim()) {
-        pluginOptions.logger = console;
         pluginOptions.logLevel = logLevel;
       }
 
-      // Create the plugin
-      const plugin = await createPlugin(arrayBuffer, pluginOptions);
-
-      // Run the function
-      let outputBuffer;
+      // Create and execute WASM
+      const executor = await createWasmExecutorFromFile(wasmFile, pluginOptions);
+      const result = await executor.execute(selectedFunction, input);
       
-      if (selectedFunction === 'call') {
-        // Default function is 'call'
-        outputBuffer = await plugin.call("call", input);
-      } else {
-        // Use the custom function name
-        outputBuffer = await plugin.call(selectedFunction, input);
+      if (result.error) {
+        throw new Error(result.error);
       }
-
-      // Get the text output
-      const output = outputBuffer?.text() || '';
-      setResult(output);
       
-      // No need to call plugin.free() in this version of Extism
+      setResult(result.output);
+      
+      // Clean up
+      await executor.free();
     } catch (error) {
       console.error("WASM execution error:", error);
       setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
