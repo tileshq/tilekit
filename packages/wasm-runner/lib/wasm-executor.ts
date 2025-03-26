@@ -14,6 +14,13 @@ export interface WasmExecutorResult {
   error?: string;
 }
 
+/**
+ * Check if SharedArrayBuffer is available (required for threaded WASM)
+ */
+export function isSharedArrayBufferAvailable(): boolean {
+  return typeof SharedArrayBuffer !== 'undefined' && typeof window !== 'undefined' && window.crossOriginIsolated === true;
+}
+
 export class WasmExecutor {
   private plugin: any;
 
@@ -26,8 +33,24 @@ export class WasmExecutor {
     const pluginOptions: any = {
       useWasi: options.useWasi ?? true,
       config: options.config || {},
-      runInWorker: options.runInWorker ?? true
     };
+    
+    // Only use worker if supported and explicitly requested
+    if (options.runInWorker) {
+      // Check if SharedArrayBuffer is available
+      if (isSharedArrayBufferAvailable()) {
+        pluginOptions.runInWorker = true;
+      } else {
+        console.warn(
+          'SharedArrayBuffer is not available. Cross-Origin Isolation is required for threaded WASM. ' +
+          'Check that your server has the proper COOP/COEP headers. ' +
+          'Falling back to single-threaded mode.'
+        );
+        pluginOptions.runInWorker = false;
+      }
+    } else {
+      pluginOptions.runInWorker = false;
+    }
 
     if (options.allowedHosts?.length) {
       pluginOptions.allowedHosts = options.allowedHosts;

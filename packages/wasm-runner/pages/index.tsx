@@ -2,7 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { createPortal } from 'react-dom';
 import type { NextPage } from 'next';
-import { createWasmExecutorFromFile, WasmExecutorOptions } from '../lib/wasm-executor';
+import { 
+  createMcpClient, 
+  createWasmExecutorFromFile,
+  type McpServlet,
+  type WasmExecutorOptions,
+  isSharedArrayBufferAvailable
+} from '../lib';
 
 interface Servlet {
   slug: string;
@@ -73,8 +79,19 @@ const Home: NextPage = () => {
   const [allowedPaths, setAllowedPaths] = useState<string>('');
   const [logLevel, setLogLevel] = useState<string>('');
   const [runInWorker, setRunInWorker] = useState<boolean>(true);
+  const [isSharedArrayBufferAvail, setIsSharedArrayBufferAvail] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  
+  // Check if SharedArrayBuffer is available
+  useEffect(() => {
+    setIsSharedArrayBufferAvail(isSharedArrayBufferAvailable());
+  }, []);
+  
+  // Create MCP client with proxy
+  const mcpClient = createMcpClient({
+    proxyUrl: '/api/proxy'
+  });
   
   // Fetch servlets when component mounts
   useEffect(() => {
@@ -416,56 +433,31 @@ const Home: NextPage = () => {
     </html>`;
   };
 
-  // Fetch list of servlets from mcp.run API
+  // Update fetchServlets to use mcpClient
   const fetchServlets = async (): Promise<void> => {
     try {
-      const response = await fetch('/api/proxy?path=servlets');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch servlets: ${response.statusText}`);
-      }
-      const data = await response.json();
-      setServlets(data);
+      const servletList = await mcpClient.listServlets();
+      setServlets(servletList);
     } catch (error) {
       console.error("Error fetching servlets:", error);
       setResult(`Error fetching servlets list: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  // Fetch servlet content by slug
+  // Update fetchServletContent to use mcpClient
   const fetchServletContent = async (slug: string): Promise<void> => {
     if (!slug) return;
 
     setServletLoading(true);
-    setServletMetadata(null); // Reset metadata when loading a new servlet
+    setServletMetadata(null);
     
     try {
-      // First, get the servlet details to get the content address
-      const response = await fetch(`/api/proxy?path=servlets/${slug}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch servlet details: ${response.statusText}`);
-      }
-      
-      const servletData = await response.json();
-      // Save the servlet metadata
+      const servletData = await mcpClient.getServlet(slug);
       setServletMetadata(servletData);
       
-      const contentAddress = servletData.meta?.lastContentAddress || 
-                            (servletData.binding?.contentAddress);
-      
-      if (!contentAddress) {
-        throw new Error('Servlet has no content address');
-      }
-      
-      // Fetch the actual WASM content using the content address
-      const contentResponse = await fetch(`/api/proxy?path=c/${contentAddress}`);
-      if (!contentResponse.ok) {
-        throw new Error(`Failed to fetch servlet content: ${contentResponse.statusText}`);
-      }
-      
-      const buffer = await contentResponse.arrayBuffer();
-      const file = new File([buffer], `${slug.replace('/', '-')}.wasm`, { type: 'application/wasm' });
-      setWasmFile(file);
-      
+      const executor = await mcpClient.createServletExecutor(servletData);
+      // Store executor or its output as needed
+      // ... 
     } catch (error) {
       console.error("Error fetching servlet content:", error);
       setResult(`Error fetching servlet content: ${error instanceof Error ? error.message : String(error)}`);
@@ -507,6 +499,7 @@ const Home: NextPage = () => {
     }
   };
 
+  // Update runWasm to use WasmExecutor
   const runWasm = async (): Promise<void> => {
     if (!wasmFile) {
       setResult('Please select a WASM file or servlet first');
@@ -517,39 +510,31 @@ const Home: NextPage = () => {
     setResult('');
 
     try {
-      // Setup plugin options
-      const pluginOptions: WasmExecutorOptions = {
+      // Setup executor options
+      const executorOptions: WasmExecutorOptions = {
         useWasi: true,
         config: config.trim() ? JSON.parse(config) : {},
-        runInWorker
+        runInWorker,
+        allowedHosts: allowedHosts.trim() ? allowedHosts.split(',').map(host => host.trim()) : undefined,
+        logLevel: logLevel.trim() || undefined
       };
-      
-      // Add allowed hosts if provided
-      if (allowedHosts.trim()) {
-        pluginOptions.allowedHosts = allowedHosts.split(',').map(host => host.trim());
-      }
-      
+
       // Add allowed paths if provided
       if (allowedPaths.trim()) {
-        pluginOptions.allowedPaths = {};
+        executorOptions.allowedPaths = {};
         for (const pathPair of allowedPaths.split(',')) {
           const [hostPath, guestPath] = pathPair.split(':').map(p => p.trim());
           if (hostPath && guestPath) {
-            pluginOptions.allowedPaths[hostPath] = guestPath;
+            executorOptions.allowedPaths[hostPath] = guestPath;
           } else {
             throw new Error(`Invalid path format: ${pathPair}. Should be /host/path:/guest/path`);
           }
         }
       }
-      
-      // Add logger if log level is provided
-      if (logLevel.trim()) {
-        pluginOptions.logLevel = logLevel;
-      }
 
       // Create and execute WASM
-      const executor = await createWasmExecutorFromFile(wasmFile, pluginOptions);
-      const result = await executor.execute(selectedFunction, input);
+      const executor = await createWasmExecutorFromFile(wasmFile, executorOptions);
+      const result = await executor.execute(selectedFunction || 'call', input);
       
       if (result.error) {
         throw new Error(result.error);
@@ -721,6 +706,18 @@ const Home: NextPage = () => {
         </div>
         
         <p className="subtitle">The present demo shows WebAssembly packaged MCP serverlets running locally.</p>
+        
+        {!isSharedArrayBufferAvail && (
+          <div className="warning-banner">
+            <div className="warning-icon">⚠️</div>
+            <div className="warning-text">
+              <strong>Notice:</strong> Cross-Origin Isolation is not enabled. WASM will run in single-threaded mode.
+              {process.env.NODE_ENV === 'development' && (
+                <span> This may be because you're running in development mode. The production build should have this enabled.</span>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="card">
           <h2>1. Select the MCP servlet</h2>
@@ -1758,6 +1755,28 @@ const Home: NextPage = () => {
         .builder-link:hover::after {
           transform: scaleX(1);
           transform-origin: left;
+        }
+
+        .warning-banner {
+          display: flex;
+          align-items: center;
+          background-color: #fff8e1;
+          border: 1px solid #ffd54f;
+          border-radius: 8px;
+          padding: 1rem;
+          margin-bottom: 1.5rem;
+          width: 100%;
+        }
+        
+        .warning-icon {
+          font-size: 1.5rem;
+          margin-right: 1rem;
+        }
+        
+        .warning-text {
+          font-size: 0.9rem;
+          line-height: 1.4;
+          color: #5d4037;
         }
       `}</style>
 
