@@ -18,10 +18,33 @@ const nextConfig = {
 
     return config;
   },
-  // For ESM module compatibility
-  experimental: {
-    esmExternals: 'loose',
+  // Add security headers for SharedArrayBuffer support
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+        ],
+      },
+    ]
   },
+  // Improve hydration handling
+  experimental: {
+    // Disable runtime JS for better hydration
+    runtime: 'nodejs',
+    // Ensure proper hydration with server components
+    serverComponents: true,
+    // Improve client-side navigation
+    scrollRestoration: true
+  }
 };
 
 module.exports = nextConfig;

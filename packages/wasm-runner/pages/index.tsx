@@ -9,6 +9,13 @@ import {
   type WasmExecutorOptions,
   isSharedArrayBufferAvailable
 } from '../lib';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for client-side only components
+const DynamicPortal = dynamic(
+  () => import('react-dom').then((mod) => mod.createPortal as any),
+  { ssr: false }
+);
 
 interface Servlet {
   slug: string;
@@ -79,24 +86,51 @@ const Home: NextPage = () => {
   const [allowedPaths, setAllowedPaths] = useState<string>('');
   const [logLevel, setLogLevel] = useState<string>('');
   const [runInWorker, setRunInWorker] = useState<boolean>(true);
-  const [isSharedArrayBufferAvail, setIsSharedArrayBufferAvail] = useState<boolean>(false);
+  const [isSharedArrayBufferAvail, setIsSharedArrayBufferAvail] = useState<boolean | null>(null);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
-  // Check if SharedArrayBuffer is available
+  // Create MCP client with proxy - move inside useEffect
+  const [mcpClient, setMcpClient] = useState<any>(null);
+  
   useEffect(() => {
-    setIsSharedArrayBufferAvail(isSharedArrayBufferAvailable());
+    setMcpClient(createMcpClient({
+      proxyUrl: '/api/proxy'
+    }));
   }, []);
   
-  // Create MCP client with proxy
-  const mcpClient = createMcpClient({
-    proxyUrl: '/api/proxy'
-  });
-  
-  // Fetch servlets when component mounts
+  // Set mounted state
   useEffect(() => {
-    fetchServlets();
+    setIsMounted(true);
   }, []);
+  
+  // Check if SharedArrayBuffer is available after mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsSharedArrayBufferAvail(isSharedArrayBufferAvailable());
+    }
+  }, []);
+  
+  // Update fetchServlets to handle null mcpClient
+  const fetchServlets = async (): Promise<void> => {
+    if (!mcpClient) return;
+    
+    try {
+      const servletList = await mcpClient.listServlets();
+      setServlets(servletList);
+    } catch (error) {
+      console.error("Error fetching servlets:", error);
+      setResult(`Error fetching servlets list: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // Update useEffect for fetchServlets
+  useEffect(() => {
+    if (mcpClient) {
+      fetchServlets();
+    }
+  }, [mcpClient]);
   
   // Update iframe content when artifact data changes
   useEffect(() => {
@@ -433,17 +467,6 @@ const Home: NextPage = () => {
     </html>`;
   };
 
-  // Update fetchServlets to use mcpClient
-  const fetchServlets = async (): Promise<void> => {
-    try {
-      const servletList = await mcpClient.listServlets();
-      setServlets(servletList);
-    } catch (error) {
-      console.error("Error fetching servlets:", error);
-      setResult(`Error fetching servlets list: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
   // Update fetchServletContent to use mcpClient
   const fetchServletContent = async (slug: string): Promise<void> => {
     if (!slug) return;
@@ -705,498 +728,509 @@ const Home: NextPage = () => {
           <h1>Tilekit</h1>
         </div>
         
-        <p className="subtitle">The present demo shows WebAssembly packaged MCP serverlets running locally.</p>
-        
-        {!isSharedArrayBufferAvail && (
-          <div className="warning-banner">
-            <div className="warning-icon">⚠️</div>
-            <div className="warning-text">
-              <strong>Notice:</strong> Cross-Origin Isolation is not enabled. WASM will run in single-threaded mode.
-              {process.env.NODE_ENV === 'development' && (
-                <span> This may be because you're running in development mode. The production build should have this enabled.</span>
-              )}
-            </div>
-          </div>
-        )}
-        
-        <div className="card">
-          <h2>1. Select the MCP servlet</h2>
-          
-          <div className="input-group">
-            <label>
-              Select a Servlet from MCP.run:
-              <select 
-                value={selectedServlet} 
-                onChange={handleServletChange}
-                disabled={servletLoading}
-                className="servlet-select"
-              >
-                <option value="">-- Select a Servlet --</option>
-                {servlets.map((servlet) => (
-                  <option key={servlet.slug} value={servlet.slug}>
-                    {servlet.slug}
-                  </option>
-                ))}
-              </select>
-              {servletLoading && <span className="loading-text">Loading servlet...</span>}
-            </label>
-          </div>
-          
-          <p className="or-divider">OR</p>
-          
-          <div className="file-selector">
-            <input
-              type="file"
-              accept=".wasm"
-              onChange={handleFileChange}
-              ref={fileInputRef}
-            />
-            <p>Or use a predefined WASM file:</p>
-            <div className="button-group">
-              <button onClick={() => handlePredefinedWasm('eval-js.wasm')}>
-                eval-js.wasm
-              </button>
-            </div>
-            {wasmFile && (
-              <p className="selected-file">
-                Selected: {wasmFile.name}
-              </p>
-            )}
-          </div>
-          
-          {/* Display servlet metadata when available */}
-          {servletMetadata && (
-            <div className="servlet-metadata">
-              <h3>Servlet Information</h3>
-              
-              {/* Description - display if available */}
-              {servletMetadata.description && (
-                <div className="metadata-item">
-                  <strong>Description:</strong> {servletMetadata.description}
-                </div>
-              )}
-              
-              {/* Name - display if available */}
-              {servletMetadata.name && (
-                <div className="metadata-item">
-                  <strong>Name:</strong> {servletMetadata.name}
-                </div>
-              )}
-              
-              {/* Tags - display if available */}
-              {servletMetadata.tags && servletMetadata.tags.length > 0 && (
-                <div className="metadata-item">
-                  <strong>Tags:</strong> {servletMetadata.tags.join(', ')}
-                </div>
-              )}
-              
-              {/* Creation date - display if available */}
-              {servletMetadata.created && (
-                <div className="metadata-item">
-                  <strong>Created:</strong> {new Date(servletMetadata.created).toLocaleString()}
-                </div>
-              )}
-              
-              {/* Updated date - display if available */}
-              {servletMetadata.updated && (
-                <div className="metadata-item">
-                  <strong>Updated:</strong> {new Date(servletMetadata.updated).toLocaleString()}
-                </div>
-              )}
-              
-              {/* Author, version, license from meta */}
-              {servletMetadata.meta && (
-                <>
-                  {servletMetadata.meta.author && (
-                    <div className="metadata-item">
-                      <strong>Author:</strong> {servletMetadata.meta.author}
-                    </div>
-                  )}
-                  {servletMetadata.meta.version && (
-                    <div className="metadata-item">
-                      <strong>Version:</strong> {servletMetadata.meta.version}
-                    </div>
-                  )}
-                  {servletMetadata.meta.license && (
-                    <div className="metadata-item">
-                      <strong>License:</strong> {servletMetadata.meta.license}
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {/* Tools section */}
-              {servletMetadata.meta?.schema?.tools && servletMetadata.meta.schema.tools.length > 0 && (
-                <div className="metadata-item tools-section">
-                  <strong>Available Tools:</strong>
-                  {servletMetadata.meta.schema.tools.map((tool, index) => (
-                    <div key={index} className="tool-item">
-                      <h4>{tool.name}</h4>
-                      <p>{tool.description}</p>
-                      
-                      {tool.inputSchema && (
-                        <div className="tool-input-schema">
-                          <h5>Input Requirements:</h5>
-                          
-                          {/* Required fields */}
-                          {tool.inputSchema.required && tool.inputSchema.required.length > 0 && (
-                            <div className="required-fields">
-                              <strong>Required fields:</strong> {tool.inputSchema.required.join(', ')}
-                            </div>
-                          )}
-                          
-                          {/* Properties */}
-                          {tool.inputSchema.properties && Object.keys(tool.inputSchema.properties).length > 0 && (
-                            <div className="input-properties">
-                              <strong>Properties:</strong>
-                              <ul>
-                                {Object.entries(tool.inputSchema.properties).map(([propName, propDetails]) => (
-                                  <li key={propName}>
-                                    <code>{propName}</code> ({(propDetails as any).type}): 
-                                    {(propDetails as any).description && <span> {(propDetails as any).description}</span>}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Debug section to show raw metadata - can be commented out in production */}
-              <div className="metadata-debug">
-                <details>
-                  <summary>View Raw Metadata</summary>
-                  <pre className="raw-metadata">
-                    {JSON.stringify(servletMetadata, null, 2)}
-                  </pre>
-                </details>
-              </div>
-            </div>
-          )}
+        <div className="subtitle">
+          <p style={{ textAlign: 'left' }}>A collection of demos while building Tilekit framework that demos:</p>
+          <ul style={{ textAlign: 'left' }}>
+            <li>WebAssembly packaged MCP serverlets running locally.</li>
+            <li>On-device execution of DeepSeek-R1-DistilI-Qwen-1.5B as the model provider for MCP serverlets [WIP]</li>
+          </ul>
         </div>
-
-        <div className="card">
-          <h2>2. {agentMode ? "AI Assistant Mode" : "Manual Mode"}</h2>
-          
-          <div className="mode-toggle">
-            <button 
-              onClick={() => setAgentMode(false)} 
-              className={`mode-button ${!agentMode ? 'active' : ''}`}
-            >
-              Manual Mode
-            </button>
-            <button 
-              onClick={() => setAgentMode(true)} 
-              className={`mode-button ${agentMode ? 'active' : ''}`}
-            >
-              AI Assistant Mode
-            </button>
-          </div>
-          
-          {agentMode ? (
-            <div className="ai-mode">
-              <div className="prompt-container">
-                <div className="prompt-input-container">
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Ask in natural language what you'd like the servlet to do..."
-                    rows={2}
-                    className="prompt-input"
-                  />
+        
+        {/* Only render client-side content after mounting */}
+        {isMounted ? (
+          <>
+            {isSharedArrayBufferAvail !== null && !isSharedArrayBufferAvail && (
+              <div className="warning-banner">
+                <div className="warning-icon">⚠️</div>
+                <div className="warning-text">
+                  <strong>Notice:</strong> Cross-Origin Isolation is not enabled. WASM will run in single-threaded mode.
+                  {process.env.NODE_ENV === 'development' && (
+                    <span> This may be because you're running in development mode. The production build should have this enabled.</span>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="card">
+              <h2>1. Select the MCP servlet</h2>
+              
+              <div className="input-group">
+                <label>
+                  Select a Servlet from MCP.run:
                   <select 
                     value={selectedServlet} 
                     onChange={handleServletChange}
-                    disabled={servletLoading || isLoading}
-                    className="servlet-select-inline"
+                    disabled={servletLoading || !mcpClient}
+                    className="servlet-select"
                   >
-                    <option value="">-- Select Servlet --</option>
+                    <option value="">-- Select a Servlet --</option>
                     {servlets.map((servlet) => (
                       <option key={servlet.slug} value={servlet.slug}>
                         {servlet.slug}
                       </option>
                     ))}
                   </select>
-                </div>
-                <button 
-                  onClick={processPrompt}
-                  disabled={isLoading || !selectedServlet || servletLoading || !message.trim()}
-                  className="run-button"
-                >
-                  {isLoading ? 'Processing...' : 'Send'}
-                </button>
-                
-                {/* Config field for AI mode */}
-                <div className="input-group small-margin-top">
-                  <label>
-                    Config (JSON):
-                    <textarea
-                      value={config}
-                      onChange={(e) => setConfig(e.target.value)}
-                      placeholder='{"key": "value"}'
-                      rows={2}
-                      className="config-input"
-                    />
-                  </label>
-                </div>
-                
-                <div className="advanced-options-toggle">
-                  <details>
-                    <summary>Advanced Options</summary>
-                    <div className="advanced-options">
-                      <div className="input-group">
-                        <label>
-                          Allowed Hosts (comma separated):
-                          <input
-                            type="text"
-                            value={allowedHosts}
-                            onChange={(e) => setAllowedHosts(e.target.value)}
-                            placeholder="example.com,api.example.org"
-                            className="small-input"
-                          />
-                        </label>
-                      </div>
-                      
-                      <div className="input-group">
-                        <label>
-                          Allowed Paths (host:guest, comma separated):
-                          <input
-                            type="text"
-                            value={allowedPaths}
-                            onChange={(e) => setAllowedPaths(e.target.value)}
-                            placeholder="/host/path:/guest/path,/another/host:/another/guest"
-                            className="small-input"
-                          />
-                        </label>
-                      </div>
-                      
-                      <div className="input-group">
-                        <label>
-                          Log Level:
-                          <select 
-                            value={logLevel}
-                            onChange={(e) => setLogLevel(e.target.value)}
-                            className="small-select"
-                          >
-                            <option value="">-- None --</option>
-                            <option value="error">Error</option>
-                            <option value="warn">Warning</option>
-                            <option value="info">Info</option>
-                            <option value="debug">Debug</option>
-                            <option value="trace">Trace</option>
-                          </select>
-                        </label>
-                      </div>
-                      
-                      <div className="input-group">
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={runInWorker}
-                            onChange={(e) => setRunInWorker(e.target.checked)}
-                          />
-                          Run in Web Worker (Recommended)
-                        </label>
-                      </div>
-                    </div>
-                  </details>
-                </div>
+                  {servletLoading && <span className="loading-text">Loading servlet...</span>}
+                </label>
               </div>
               
-              {conversationHistory.length > 0 && (
-                <div className="conversation-history">
-                  <h3>Conversation</h3>
-                  <div className="conversation-container">
-                    {conversationHistory.map((msg, index) => (
-                      <div key={index} className={`message ${msg.role}`}>
-                        {msg.type === 'tool_results' ? (
-                          <div className="tool-results">
-                            <h4>Tool Results:</h4>
-                            {(msg.content as ToolResult[]).map((tool, toolIndex) => (
-                              <div key={toolIndex} className="tool-result-item">
-                                <div className="tool-result-header">
-                                  <strong>{tool.toolName}:</strong>
-                                  <button 
-                                    className="view-artifact-button"
-                                    onClick={() => setArtifactData({
-                                      toolName: tool.toolName,
-                                      result: tool.result || tool.error,
-                                      isError: !!tool.error
-                                    })}
-                                  >
-                                    View as Artifact
-                                  </button>
+              <p className="or-divider">OR</p>
+              
+              <div className="file-selector">
+                <input
+                  type="file"
+                  accept=".wasm"
+                  onChange={handleFileChange}
+                  ref={fileInputRef}
+                />
+                <p>Or use a predefined WASM file:</p>
+                <div className="button-group">
+                  <button onClick={() => handlePredefinedWasm('eval-js.wasm')}>
+                    eval-js.wasm
+                  </button>
+                </div>
+                {wasmFile && (
+                  <p className="selected-file">
+                    Selected: {wasmFile.name}
+                  </p>
+                )}
+              </div>
+              
+              {/* Display servlet metadata when available */}
+              {servletMetadata && (
+                <div className="servlet-metadata">
+                  <h3>Servlet Information</h3>
+                  
+                  {/* Description - display if available */}
+                  {servletMetadata.description && (
+                    <div className="metadata-item">
+                      <strong>Description:</strong> {servletMetadata.description}
+                    </div>
+                  )}
+                  
+                  {/* Name - display if available */}
+                  {servletMetadata.name && (
+                    <div className="metadata-item">
+                      <strong>Name:</strong> {servletMetadata.name}
+                    </div>
+                  )}
+                  
+                  {/* Tags - display if available */}
+                  {servletMetadata.tags && servletMetadata.tags.length > 0 && (
+                    <div className="metadata-item">
+                      <strong>Tags:</strong> {servletMetadata.tags.join(', ')}
+                    </div>
+                  )}
+                  
+                  {/* Creation date - display if available */}
+                  {servletMetadata.created && (
+                    <div className="metadata-item" suppressHydrationWarning>
+                      <strong>Created:</strong> {new Date(servletMetadata.created).toLocaleString()}
+                    </div>
+                  )}
+                  
+                  {/* Updated date - display if available */}
+                  {servletMetadata.updated && (
+                    <div className="metadata-item" suppressHydrationWarning>
+                      <strong>Updated:</strong> {new Date(servletMetadata.updated).toLocaleString()}
+                    </div>
+                  )}
+                  
+                  {/* Author, version, license from meta */}
+                  {servletMetadata.meta && (
+                    <>
+                      {servletMetadata.meta.author && (
+                        <div className="metadata-item">
+                          <strong>Author:</strong> {servletMetadata.meta.author}
+                        </div>
+                      )}
+                      {servletMetadata.meta.version && (
+                        <div className="metadata-item">
+                          <strong>Version:</strong> {servletMetadata.meta.version}
+                        </div>
+                      )}
+                      {servletMetadata.meta.license && (
+                        <div className="metadata-item">
+                          <strong>License:</strong> {servletMetadata.meta.license}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* Tools section */}
+                  {servletMetadata.meta?.schema?.tools && servletMetadata.meta.schema.tools.length > 0 && (
+                    <div className="metadata-item tools-section">
+                      <strong>Available Tools:</strong>
+                      {servletMetadata.meta.schema.tools.map((tool, index) => (
+                        <div key={index} className="tool-item">
+                          <h4>{tool.name}</h4>
+                          <p>{tool.description}</p>
+                          
+                          {tool.inputSchema && (
+                            <div className="tool-input-schema">
+                              <h5>Input Requirements:</h5>
+                              
+                              {/* Required fields */}
+                              {tool.inputSchema.required && tool.inputSchema.required.length > 0 && (
+                                <div className="required-fields">
+                                  <strong>Required fields:</strong> {tool.inputSchema.required.join(', ')}
                                 </div>
-                                <pre className="tool-result-content">
-                                  {typeof tool.result === 'object' 
-                                    ? JSON.stringify(tool.result, null, 2)
-                                    : tool.result || tool.error}
-                                </pre>
-                              </div>
-                            ))}
-                          </div>
-                        ) : Array.isArray(msg.content) ? (
-                          <div className="message-content">
-                            {msg.content
-                              .filter((block: any) => block.type === 'text')
-                              .map((block: any, blockIndex: number) => (
-                                <div key={blockIndex}>{block.text}</div>
-                              ))}
-                            {msg.content
-                              .filter((block: any) => block.type === 'tool_use')
-                              .map((block: any, blockIndex: number) => (
-                                <div key={blockIndex} className="tool-use">
-                                  <strong>Using Tool: {block.name}</strong>
-                                  <pre className="tool-use-input">
-                                    {JSON.stringify(block.input, null, 2)}
-                                  </pre>
+                              )}
+                              
+                              {/* Properties */}
+                              {tool.inputSchema.properties && Object.keys(tool.inputSchema.properties).length > 0 && (
+                                <div className="input-properties">
+                                  <strong>Properties:</strong>
+                                  <ul>
+                                    {Object.entries(tool.inputSchema.properties).map(([propName, propDetails]) => (
+                                      <li key={propName}>
+                                        <code>{propName}</code> ({(propDetails as any).type}): 
+                                        {(propDetails as any).description && <span> {(propDetails as any).description}</span>}
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="message-content">{msg.content}</div>
-                        )}
-                      </div>
-                    ))}
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Debug section to show raw metadata - can be commented out in production */}
+                  <div className="metadata-debug">
+                    <details>
+                      <summary>View Raw Metadata</summary>
+                      <pre className="raw-metadata">
+                        {JSON.stringify(servletMetadata, null, 2)}
+                      </pre>
+                    </details>
                   </div>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="manual-mode">
-              <div className="input-group">
-                <label>
-                  Function Name:
-                  <input
-                    type="text"
-                    value={selectedFunction}
-                    onChange={(e) => setSelectedFunction(e.target.value)}
-                    placeholder="Function name (default: call)"
-                  />
-                </label>
-              </div>
 
-              <div className="input-group">
-                <label>
-                  Input:
-                  <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Enter input for the WASM function"
-                    rows={5}
-                  />
-                </label>
-              </div>
-
-              <div className="input-group">
-                <label>
-                  Config (JSON):
-                  <textarea
-                    value={config}
-                    onChange={(e) => setConfig(e.target.value)}
-                    placeholder='{"key": "value"}'
-                    rows={3}
-                  />
-                </label>
-              </div>
+            <div className="card">
+              <h2>2. {agentMode ? "AI Assistant Mode" : "Manual Mode"}</h2>
               
-              <div className="input-group">
-                <label>
-                  Allowed Hosts (comma separated):
-                  <input
-                    type="text"
-                    value={allowedHosts}
-                    onChange={(e) => setAllowedHosts(e.target.value)}
-                    placeholder="example.com,api.example.org"
-                  />
-                </label>
-              </div>
-              
-              <div className="input-group">
-                <label>
-                  Allowed Paths (host:guest, comma separated):
-                  <input
-                    type="text"
-                    value={allowedPaths}
-                    onChange={(e) => setAllowedPaths(e.target.value)}
-                    placeholder="/host/path:/guest/path,/another/host:/another/guest"
-                  />
-                </label>
-              </div>
-              
-              <div className="input-group">
-                <label>
-                  Log Level:
-                  <select 
-                    value={logLevel}
-                    onChange={(e) => setLogLevel(e.target.value)}
-                  >
-                    <option value="">-- None --</option>
-                    <option value="error">Error</option>
-                    <option value="warn">Warning</option>
-                    <option value="info">Info</option>
-                    <option value="debug">Debug</option>
-                    <option value="trace">Trace</option>
-                  </select>
-                </label>
-              </div>
-              
-              <div className="input-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={runInWorker}
-                    onChange={(e) => setRunInWorker(e.target.checked)}
-                  />
-                  Run in Web Worker (Recommended)
-                </label>
-              </div>
-
-              <button 
-                onClick={runWasm}
-                disabled={isLoading || !wasmFile || servletLoading}
-                className="run-button"
-              >
-                {isLoading ? 'Running...' : 'Run WASM'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="card result-card">
-          <h2>3. Result</h2>
-          {artifactData ? (
-            <div className="artifact-container">
-              <div className="artifact-heading">
-                <h3 className="artifact-title">{artifactData.toolName} Artifact</h3>
+              <div className="mode-toggle">
                 <button 
-                  className="toggle-view-button"
-                  onClick={() => setArtifactData(null)}
+                  onClick={() => setAgentMode(false)} 
+                  className={`mode-button ${!agentMode ? 'active' : ''}`}
                 >
-                  Show Raw Output
+                  Manual Mode
+                </button>
+                <button 
+                  onClick={() => setAgentMode(true)} 
+                  className={`mode-button ${agentMode ? 'active' : ''}`}
+                >
+                  AI Assistant Mode
                 </button>
               </div>
-              <iframe 
-                ref={iframeRef}
-                className="artifact-iframe"
-                title="Tool Result Artifact"
-                sandbox="allow-scripts allow-popups allow-same-origin"
-                frameBorder="0"
-              />
+              
+              {agentMode ? (
+                <div className="ai-mode">
+                  <div className="prompt-container">
+                    <div className="prompt-input-container">
+                      <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Ask in natural language what you'd like the servlet to do..."
+                        rows={2}
+                        className="prompt-input"
+                      />
+                      <select 
+                        value={selectedServlet} 
+                        onChange={handleServletChange}
+                        disabled={servletLoading || isLoading}
+                        className="servlet-select-inline"
+                      >
+                        <option value="">-- Select Servlet --</option>
+                        {servlets.map((servlet) => (
+                          <option key={servlet.slug} value={servlet.slug}>
+                            {servlet.slug}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button 
+                      onClick={processPrompt}
+                      disabled={isLoading || !selectedServlet || servletLoading || !message.trim()}
+                      className="run-button"
+                    >
+                      {isLoading ? 'Processing...' : 'Send'}
+                    </button>
+                    
+                    {/* Config field for AI mode */}
+                    <div className="input-group small-margin-top">
+                      <label>
+                        Config (JSON):
+                        <textarea
+                          value={config}
+                          onChange={(e) => setConfig(e.target.value)}
+                          placeholder='{"key": "value"}'
+                          rows={2}
+                          className="config-input"
+                        />
+                      </label>
+                    </div>
+                    
+                    <div className="advanced-options-toggle">
+                      <details>
+                        <summary>Advanced Options</summary>
+                        <div className="advanced-options">
+                          <div className="input-group">
+                            <label>
+                              Allowed Hosts (comma separated):
+                              <input
+                                type="text"
+                                value={allowedHosts}
+                                onChange={(e) => setAllowedHosts(e.target.value)}
+                                placeholder="example.com,api.example.org"
+                                className="small-input"
+                              />
+                            </label>
+                          </div>
+                          
+                          <div className="input-group">
+                            <label>
+                              Allowed Paths (host:guest, comma separated):
+                              <input
+                                type="text"
+                                value={allowedPaths}
+                                onChange={(e) => setAllowedPaths(e.target.value)}
+                                placeholder="/host/path:/guest/path,/another/host:/another/guest"
+                                className="small-input"
+                              />
+                            </label>
+                          </div>
+                          
+                          <div className="input-group">
+                            <label>
+                              Log Level:
+                              <select 
+                                value={logLevel}
+                                onChange={(e) => setLogLevel(e.target.value)}
+                                className="small-select"
+                              >
+                                <option value="">-- None --</option>
+                                <option value="error">Error</option>
+                                <option value="warn">Warning</option>
+                                <option value="info">Info</option>
+                                <option value="debug">Debug</option>
+                                <option value="trace">Trace</option>
+                              </select>
+                            </label>
+                          </div>
+                          
+                          <div className="input-group">
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={runInWorker}
+                                onChange={(e) => setRunInWorker(e.target.checked)}
+                              />
+                              Run in Web Worker (Recommended)
+                            </label>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                  
+                  {conversationHistory.length > 0 && (
+                    <div className="conversation-history">
+                      <h3>Conversation</h3>
+                      <div className="conversation-container">
+                        {conversationHistory.map((msg, index) => (
+                          <div key={index} className={`message ${msg.role}`}>
+                            {msg.type === 'tool_results' ? (
+                              <div className="tool-results">
+                                <h4>Tool Results:</h4>
+                                {(msg.content as ToolResult[]).map((tool, toolIndex) => (
+                                  <div key={toolIndex} className="tool-result-item">
+                                    <div className="tool-result-header">
+                                      <strong>{tool.toolName}:</strong>
+                                      <button 
+                                        className="view-artifact-button"
+                                        onClick={() => setArtifactData({
+                                          toolName: tool.toolName,
+                                          result: tool.result || tool.error,
+                                          isError: !!tool.error
+                                        })}
+                                      >
+                                        View as Artifact
+                                      </button>
+                                    </div>
+                                    <pre className="tool-result-content">
+                                      {typeof tool.result === 'object' 
+                                        ? JSON.stringify(tool.result, null, 2)
+                                        : tool.result || tool.error}
+                                    </pre>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : Array.isArray(msg.content) ? (
+                              <div className="message-content">
+                                {msg.content
+                                  .filter((block: any) => block.type === 'text')
+                                  .map((block: any, blockIndex: number) => (
+                                    <div key={blockIndex}>{block.text}</div>
+                                  ))}
+                                {msg.content
+                                  .filter((block: any) => block.type === 'tool_use')
+                                  .map((block: any, blockIndex: number) => (
+                                    <div key={blockIndex} className="tool-use">
+                                      <strong>Using Tool: {block.name}</strong>
+                                      <pre className="tool-use-input">
+                                        {JSON.stringify(block.input, null, 2)}
+                                      </pre>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <div className="message-content">{msg.content}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="manual-mode">
+                  <div className="input-group">
+                    <label>
+                      Function Name:
+                      <input
+                        type="text"
+                        value={selectedFunction}
+                        onChange={(e) => setSelectedFunction(e.target.value)}
+                        placeholder="Function name (default: call)"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="input-group">
+                    <label>
+                      Input:
+                      <textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Enter input for the WASM function"
+                        rows={5}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="input-group">
+                    <label>
+                      Config (JSON):
+                      <textarea
+                        value={config}
+                        onChange={(e) => setConfig(e.target.value)}
+                        placeholder='{"key": "value"}'
+                        rows={3}
+                      />
+                    </label>
+                  </div>
+                  
+                  <div className="input-group">
+                    <label>
+                      Allowed Hosts (comma separated):
+                      <input
+                        type="text"
+                        value={allowedHosts}
+                        onChange={(e) => setAllowedHosts(e.target.value)}
+                        placeholder="example.com,api.example.org"
+                      />
+                    </label>
+                  </div>
+                  
+                  <div className="input-group">
+                    <label>
+                      Allowed Paths (host:guest, comma separated):
+                      <input
+                        type="text"
+                        value={allowedPaths}
+                        onChange={(e) => setAllowedPaths(e.target.value)}
+                        placeholder="/host/path:/guest/path,/another/host:/another/guest"
+                      />
+                    </label>
+                  </div>
+                  
+                  <div className="input-group">
+                    <label>
+                      Log Level:
+                      <select 
+                        value={logLevel}
+                        onChange={(e) => setLogLevel(e.target.value)}
+                      >
+                        <option value="">-- None --</option>
+                        <option value="error">Error</option>
+                        <option value="warn">Warning</option>
+                        <option value="info">Info</option>
+                        <option value="debug">Debug</option>
+                        <option value="trace">Trace</option>
+                      </select>
+                    </label>
+                  </div>
+                  
+                  <div className="input-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={runInWorker}
+                        onChange={(e) => setRunInWorker(e.target.checked)}
+                      />
+                      Run in Web Worker (Recommended)
+                    </label>
+                  </div>
+
+                  <button 
+                    onClick={runWasm}
+                    disabled={isLoading || !wasmFile || servletLoading}
+                    className="run-button"
+                  >
+                    {isLoading ? 'Running...' : 'Run WASM'}
+                  </button>
+                </div>
+              )}
             </div>
-          ) : (
-            <pre className="result-box">{result || 'No result yet'}</pre>
-          )}
-        </div>
+
+            <div className="card result-card">
+              <h2>3. Result</h2>
+              {artifactData ? (
+                <div className="artifact-container">
+                  <div className="artifact-heading">
+                    <h3 className="artifact-title">{artifactData.toolName} Artifact</h3>
+                    <button 
+                      className="toggle-view-button"
+                      onClick={() => setArtifactData(null)}
+                    >
+                      Show Raw Output
+                    </button>
+                  </div>
+                  <iframe 
+                    ref={iframeRef}
+                    className="artifact-iframe"
+                    title="Tool Result Artifact"
+                    sandbox="allow-scripts allow-popups allow-same-origin"
+                    frameBorder="0"
+                  />
+                </div>
+              ) : (
+                <pre className="result-box">{result || 'No result yet'}</pre>
+              )}
+            </div>
+          </>
+        ) : null}
       </main>
 
       <footer className="footer">
-      Tilekit is the underlying personal software framework that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/Agent54/tilekit/tree/dev/packages/wasm-runner" className="builder-link">Agent54/tilekit</a>
-      <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
+        Tilekit is the underlying personal software framework that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/Agent54/tilekit/tree/dev/packages/wasm-runner" className="builder-link">Agent54/tilekit</a>
+        <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
       </footer>
 
       <style jsx>{`
@@ -1232,6 +1266,15 @@ const Home: NextPage = () => {
           margin-bottom: 2rem;
           font-size: 1.1rem;
           max-width: 90%;
+        }
+        
+        .subtitle p {
+          margin-bottom: 1rem;
+        }
+        
+        .subtitle ul {
+          list-style-position: inside;
+          padding-left: 0;
         }
         
         .card {
