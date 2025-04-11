@@ -729,13 +729,12 @@ const Home: NextPage = () => {
         </div>
         
         <div className="subtitle">
-          <p style={{ textAlign: 'left' }}>A collection of demos while building Tilekit framework that demos:</p>
+          <p style={{ textAlign: 'left' }}>A collection of demos built while developing the Tilekit framework, showcasing:</p>
           <ul style={{ textAlign: 'left' }}>
-            <li>WebAssembly packaged MCP serverlets running locally.</li>
-            <li>On-device execution of DeepSeek-R1-DistilI-Qwen-1.5B as the model provider for MCP serverlets [WIP]</li>
+            <li>WebAssembly-packaged MCP servlets running locally</li>
+            <li>On-device execution of DeepSeek-R1-DistilI-Qwen-1.5B as the model provider for MCP servlets (WIP)</li>
           </ul>
         </div>
-        
         {/* Only render client-side content after mounting */}
         {isMounted ? (
           <>
