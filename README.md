@@ -1,11 +1,18 @@
-# Tiles - Web Applet + MCP.run Integration
+# Tilekit
 
-A new interface for crafting personal software
+Tilekit is the underlying personal software framework that powers the tiles.run notebook interface. This work is exploratory in nature and not meant for external use.
 
-## Features
+## Demo
 
-- Greeting serverlet: Greet a person by name
-- HTML to Markdown serverlet: Convert a webpage to markdown format
+This project demonstrates how to integrate with mcp.run serverlets. It includes:
+
+1. Session management with MCP
+2. Calling MCP tools with proper error handling
+3. Fallback to mock implementations for demonstration purposes
+
+## Explorations
+- On-device execution of DeepSeek-R1-DistilI-Qwen-1.5B as the model provider for MCP servlets (WIP)
+- ElectricSQL integration for CRDTs and client side SQLite
 
 ## Prerequisites
 
@@ -68,14 +75,8 @@ This will start a server at http://localhost:3000 that serves the files from the
   - `manifest.json`: Manifest file for the web applet
   - `index.js`: Built JavaScript bundle
 
-## MCP.run Integration
-
-This project demonstrates how to integrate with mcp.run serverlets. It includes:
-
-1. Session management with MCP
-2. Calling MCP tools with proper error handling
-3. Fallback to mock implementations for demonstration purposes
 
 ## License
 
-See the [LICENSE](LICENSE) file for details.
+Apache License 2.0.
+© 2025 Tiles HQ. All rights reserved. 
