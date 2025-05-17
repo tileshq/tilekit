@@ -729,11 +729,7 @@ const Home: NextPage = () => {
         </div>
         
         <div className="subtitle">
-          <p style={{ textAlign: 'left' }}>A collection of demos built while developing the Tilekit framework, showcasing:</p>
-          <ul style={{ textAlign: 'left' }}>
-            <li>WebAssembly-packaged MCP servlets running locally</li>
-            <li>On-device execution of DeepSeek-R1-DistilI-Qwen-1.5B as the model provider for MCP servlets (WIP)</li>
-          </ul>
+          <p style={{ textAlign: 'left' }}>Tilekit is the underlying personal software framework that powers the tiles.run notebook interface. This work is exploratory in nature and not meant for external use. Checkout [README.md](https://github.com/tileshq/tilekit/blob/dev-seo/README.md) for more details.</p>
         </div>
         {/* Only render client-side content after mounting */}
         {isMounted ? (
