@@ -730,7 +730,7 @@ const Home: NextPage = () => {
         
         <div className="subtitle">
           <p style={{ textAlign: 'left' }}>
-            Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run" className="builder-link">tiles.run</a> notebook interface. This also servers as our internal playground for experimental demos. Checkout <a href="https://github.com/tileshq/tilekit/blob/dev-seo/README.md" className="builder-link">README.md</a> for more details.
+            Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run" className="builder-link">tiles.run</a> notebook interface. This also servers as our internal playground for experimental demos. Checkout <a href="https://github.com/tileshq/tilekit/blob/main/README.md" className="builder-link">README.md</a> for more details.
           </p>
         </div>
         {/* Only render client-side content after mounting */}
