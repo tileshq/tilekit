@@ -718,7 +718,7 @@ const Home: NextPage = () => {
     <div className="container">
       <Head>
         <title>Tilekit</title>
-        <meta name="description" content="Personal software framework that powers the tiles.run notebook interface." />
+        <meta name="description" content="Personal software toolkit that powers the tiles.run notebook interface." />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
 
@@ -730,7 +730,7 @@ const Home: NextPage = () => {
         
         <div className="subtitle">
           <p style={{ textAlign: 'left' }}>
-            Tilekit is the underlying personal software framework that powers the tiles.run notebook interface. This work is exploratory in nature and not meant for external use. Checkout <a href="https://github.com/tileshq/tilekit/blob/dev-seo/README.md">README.md</a> for more details.
+            Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run" className="builder-link">tiles.run</a> notebook interface. This also servers as our internal playground for experimental demos. Checkout <a href="https://github.com/tileshq/tilekit/blob/dev-seo/README.md" className="builder-link">README.md</a> for more details.
           </p>
         </div>
         {/* Only render client-side content after mounting */}
@@ -1226,7 +1226,7 @@ const Home: NextPage = () => {
       </main>
 
       <footer className="footer">
-        Tilekit is the underlying personal software framework that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/tileshq/tiles" className="builder-link">tileshq/tilekit</a>
+        Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/tileshq/tiles" className="builder-link">tileshq/tilekit</a>
         <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
       </footer>
 

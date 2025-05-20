@@ -1,6 +1,6 @@
 # Tilekit
 
-Tilekit is the underlying personal software framework that powers the tiles.run notebook interface. This work is exploratory in nature and not meant for external use.
+Tilekit is the underlying personal software toolkit that powers the tiles.run notebook interface. This work is exploratory in nature and not meant for external use.
 
 ## Demo
 
@@ -11,12 +11,13 @@ This project demonstrates how to integrate with mcp.run serverlets. It includes:
 3. Fallback to mock implementations for demonstration purposes
 
 ## Explorations
-- On-device execution of DeepSeek-R1-DistilI-Qwen-1.5B as the model provider for MCP servlets (WIP)
+- On-device execution of gemma-3-4b-it-GGUF as the model provider for MCP servlets (WIP)
 - ElectricSQL integration for CRDTs and client side SQLite
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) (v1.0.0 or higher)
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- npm (comes with Node.js)
 
 ## Installation
 
@@ -28,7 +29,7 @@ This project demonstrates how to integrate with mcp.run serverlets. It includes:
 
 2. Install dependencies:
    ```bash
-   bun install
+   npm install
    ```
 
 ## Development
@@ -36,7 +37,7 @@ This project demonstrates how to integrate with mcp.run serverlets. It includes:
 To run the development server:
 
 ```bash
-bun run start
+npm run start
 ```
 
 This will start the server at http://localhost:3000.
@@ -46,7 +47,7 @@ This will start the server at http://localhost:3000.
 To build the project:
 
 ```bash
-bun run build
+npm run build
 ```
 
 This will:
@@ -59,10 +60,34 @@ This will:
 To serve the built files:
 
 ```bash
-bun run serve
+npm run serve
 ```
 
 This will start a server at http://localhost:3000 that serves the files from the `build` directory.
+
+## Running WASM Runner Demos
+
+The project includes a WASM runner demo in the `packages/wasm-runner` directory. To run the demo:
+
+1. Navigate to the wasm-runner directory:
+   ```bash
+   cd packages/wasm-runner
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+This will start the WASM runner demo at http://localhost:3000. The demo showcases:
+- WASM module execution in the browser
+- Integration with MCP serverlets
+- Real-time code execution and visualization
 
 ## Project Structure
 
@@ -74,7 +99,10 @@ This will start a server at http://localhost:3000 that serves the files from the
   - `applet.js`: JavaScript file for the web applet
   - `manifest.json`: Manifest file for the web applet
   - `index.js`: Built JavaScript bundle
-
+- `packages/wasm-runner/`: WASM execution demo and playground
+  - `pages/`: Next.js pages and components
+  - `lib/`: Core WASM execution logic
+  - `public/`: Static assets
 
 ## License
 
