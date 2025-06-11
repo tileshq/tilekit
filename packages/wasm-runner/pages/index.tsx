@@ -730,7 +730,7 @@ const Home: NextPage = () => {
         
         <div className="subtitle">
           <p style={{ textAlign: 'left' }}>
-            Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run" className="builder-link">tiles.run</a> notebook interface. This also servers as our internal playground for experimental demos. Checkout <a href="https://github.com/tileshq/tilekit/blob/main/README.md" className="builder-link">README.md</a> for more details.
+            Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run" className="builder-link">tiles.run</a> notebook interface. This also serves as our internal playground for experimental demos like <a href="https://github.com/tileshq/mcp-cli" className="builder-link">mcp-cli</a> and <a href="https://github.com/tileshq/mcp-client-toolkit" className="builder-link">mcp-client-toolkit</a>. Checkout <a href="https://github.com/tileshq/tilekit/blob/main/README.md" className="builder-link">README.md</a> for more details.
           </p>
         </div>
         {/* Only render client-side content after mounting */}
@@ -804,7 +804,6 @@ const Home: NextPage = () => {
                       <strong>Description:</strong> {servletMetadata.description}
                     </div>
                   )}
-                  
                   {/* Name - display if available */}
                   {servletMetadata.name && (
                     <div className="metadata-item">
