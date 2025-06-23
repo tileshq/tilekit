@@ -719,6 +719,15 @@ const Home: NextPage = () => {
       <Head>
         <title>Tilekit</title>
         <meta name="description" content="Personal software toolkit that powers the tiles.run notebook interface." />
+        <meta property="og:title" content="Tilekit" />
+        <meta property="og:description" content="Personal software toolkit that powers the tiles.run notebook interface." />
+        <meta property="og:image" content="https://tilekit.dev/og" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://tilekit.dev/" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://tilekit.dev/og" />
         <link rel="icon" href="/icons/favicon.ico" />
       </Head>
 
