@@ -1,6 +1,6 @@
 # Tilekit
 
-Tilekit is the underlying personal software toolkit that powers the tiles.run notebook interface. This work is exploratory in nature and not meant for external use.
+Tilekit is the personal software toolkit that powers [Tiles](https://tiles.run) notebook. This work is exploratory in nature and not meant for external use.
 
 ## Demo
 

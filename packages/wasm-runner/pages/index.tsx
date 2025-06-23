@@ -717,10 +717,10 @@ const Home: NextPage = () => {
   return (
     <div className="container">
       <Head>
-        <title>Tilekit</title>
-        <meta name="description" content="Personal software toolkit that powers the tiles.run notebook interface." />
-        <meta property="og:title" content="Tilekit" />
-        <meta property="og:description" content="Personal software toolkit that powers the tiles.run notebook interface." />
+        <title>Tielkit | Personal Software Toolkit</title>
+        <meta name="description" content="Personal software toolkit that powers Tiles notebook." />
+        <meta property="og:title" content="Tielkit | Personal Software Toolkit" />
+        <meta property="og:description" content="Personal software toolkit that powers Tiles notebook." />
         <meta property="og:image" content="https://tilekit.dev/og" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -739,7 +739,7 @@ const Home: NextPage = () => {
         
         <div className="subtitle">
           <p style={{ textAlign: 'left' }}>
-            Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run" className="builder-link">tiles.run</a> notebook interface. This also serves as our internal playground for experimental demos like <a href="https://github.com/tileshq/mcp-cli" className="builder-link">mcp-cli</a> and <a href="https://github.com/tileshq/mcp-client-toolkit" className="builder-link">mcp-client-toolkit</a>. Checkout <a href="https://github.com/tileshq/tilekit/blob/main/README.md" className="builder-link">README.md</a> for more details.
+            Tilekit is the personal software toolkit that powers <a href="https://tiles.run" className="builder-link">Tiles</a> notebook. This also serves as our internal playground for experimental demos like <a href="https://github.com/tileshq/mcp-cli" className="builder-link">mcp-cli</a> and <a href="https://github.com/tileshq/mcp-client-toolkit" className="builder-link">mcp-client-toolkit</a>. Checkout <a href="https://github.com/tileshq/tilekit/blob/main/README.md" className="builder-link">README.md</a> for more details.
           </p>
         </div>
         {/* Only render client-side content after mounting */}
@@ -1234,7 +1234,7 @@ const Home: NextPage = () => {
       </main>
 
       <footer className="footer">
-        Tilekit is the underlying personal software toolkit that powers the <a href="https://tiles.run/" className="builder-link">tiles.run</a> notebook interface. Github: <a href="https://github.com/tileshq/tilekit" className="builder-link">tileshq/tilekit</a>
+        Tilekit is the personal software toolkit that powers <a href="https://tiles.run/" className="builder-link">Tiles</a> notebook. Github: <a href="https://github.com/tileshq/tilekit" className="builder-link">tileshq/tilekit</a>
         <br /> Designed and built by <a href="https://ankeshbharti.com" className="builder-link">@feynon</a> and <a href="https://aswinc.blog" className="builder-link">@chandanaveli</a>.
       </footer>
 
