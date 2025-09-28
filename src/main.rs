@@ -2,9 +2,18 @@ use std::error::Error;
 use tilekit::modelfile;
 pub fn main() -> Result<(), Box<dyn Error>> {
     println!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    let modelfile = "FROM llama3.2";
-    let modelfile_2 = "PARAMETER topt 3.4";
-    let res = modelfile::parse_command(modelfile_2);
+    let modelfile = "FROM llama3.2
+
+    PARAMETER topt 3.5
+
+    yo topn 4";
+    let modelfile_2 = "FROM\nADAPTER\nui\nujuj\nADAPTER";
+    let modelfile_3 = "FROM
+    PARAMETER
+    ADAPTER
+    YOLO
+    ";
+    let res = modelfile::parse_file(modelfile);
     println!("{:?}", res);
     // let (rem, output) = breakfast::do_nothing_parser("hello world")?;
     // assert_eq!(rem, "hello world");

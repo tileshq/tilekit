@@ -9,21 +9,32 @@
 // multiline_string -> """<str>"""
 
 use nom::{
-    IResult, Parser,
-    bits::complete::tag,
+    AsChar, IResult, Parser,
     branch::alt,
-    bytes::complete::{tag_no_case, take_until1, take_while1},
-    character::complete::{alpha1, alphanumeric1, anychar},
-    multi::{many0, separated_list1},
-    sequence::pair,
+    bytes::complete::{tag, tag_no_case, take_until, take_until1, take_while1},
+    character::complete::{alpha1, alphanumeric1, anychar, multispace0, newline},
+    multi::{many0, many1, separated_list0, separated_list1},
+    sequence::{delimited, pair},
 };
 
 pub fn parse(_input: &str) -> Result<String, String> {
     Ok("Parsed successfully".to_owned())
 }
 
+pub fn parse_sep(input: &str) -> IResult<&str, Vec<&str>> {
+    separated_list0(multispace0, tag("yo")).parse(input)
+}
+
+pub fn parse_file(input: &str) -> IResult<&str, Vec<(&str, &str)>> {
+    separated_list1(multispace0, parse_command).parse(input)
+}
+
 pub fn parse_command(input: &str) -> IResult<&str, (&str, &str)> {
-    pair(parse_instruction, parse_arguments).parse(input)
+    pair(
+        delimited(multispace0, parse_instruction, multispace0),
+        parse_arguments,
+    )
+    .parse(input)
 }
 
 fn parse_instruction(input: &str) -> IResult<&str, &str> {
@@ -40,5 +51,10 @@ fn parse_instruction(input: &str) -> IResult<&str, &str> {
 }
 
 fn parse_arguments(input: &str) -> IResult<&str, &str> {
-    take_while1(|c: char| c.is_ascii())(input)
+    delimited(
+        multispace0,
+        take_while1(|c: char| !c.is_newline()),
+        multispace0,
+    )
+    .parse(input)
 }
