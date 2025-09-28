@@ -9,5 +9,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ";
     let res = modelfile::parse(modelfile);
     println!("{:?}", res);
+    let res_2 = modelfile::parse_from_file("../a.modelfile");
+
+    println!("{:?}", res_2);
     Ok(())
 }

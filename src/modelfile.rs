@@ -8,6 +8,8 @@
 // quoted_string -> "<str>"
 // multiline_string -> """<str>"""
 
+use std::fs;
+
 use nom::{
     AsChar, IResult, Parser,
     branch::alt,
@@ -17,14 +19,19 @@ use nom::{
     sequence::{delimited, pair},
 };
 
-pub fn parse(input: &str) -> Result<&str, &str> {
+pub fn parse_from_file(path: &str) -> Result<&str, &str> {
+    let content = fs::read_to_string(path).expect("File read failed");
+    parse(content.as_str())
+}
+
+pub fn parse(input: &str) -> Result<&'static str, &'static str> {
     match parse_file(input) {
         Ok((rest, parsed_data)) => {
             if !rest.is_empty() {
-                return Err("Modelfile failed to parse");
+                Err("Modelfile failed to parse")
             } else {
                 println!("Parsed file{:?}", parsed_data);
-                return Ok("Modelfile parsed successfully");
+                Ok("Modelfile parsed successfully")
             }
         }
         Err(_err) => Err("Modelfile failed to parse"),
@@ -52,6 +59,7 @@ fn parse_instruction(input: &str) -> IResult<&str, &str> {
         tag_no_case("ADAPTER"),
         tag_no_case("LICENSE"),
         tag_no_case("MESSAGE"),
+        tag_no_case("#"),
     ))
     .parse(input)
 }
