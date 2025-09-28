@@ -11,25 +11,31 @@
 use nom::{
     AsChar, IResult, Parser,
     branch::alt,
-    bytes::complete::{tag, tag_no_case, take_until, take_until1, take_while1},
-    character::complete::{alpha1, alphanumeric1, anychar, multispace0, newline},
-    multi::{many0, many1, separated_list0, separated_list1},
+    bytes::complete::{tag_no_case, take_while1},
+    character::complete::multispace0,
+    multi::separated_list1,
     sequence::{delimited, pair},
 };
 
-pub fn parse(_input: &str) -> Result<String, String> {
-    Ok("Parsed successfully".to_owned())
+pub fn parse(input: &str) -> Result<&str, &str> {
+    match parse_file(input) {
+        Ok((rest, parsed_data)) => {
+            if !rest.is_empty() {
+                return Err("Modelfile failed to parse");
+            } else {
+                println!("Parsed file{:?}", parsed_data);
+                return Ok("Modelfile parsed successfully");
+            }
+        }
+        Err(_err) => Err("Modelfile failed to parse"),
+    }
 }
 
-pub fn parse_sep(input: &str) -> IResult<&str, Vec<&str>> {
-    separated_list0(multispace0, tag("yo")).parse(input)
-}
-
-pub fn parse_file(input: &str) -> IResult<&str, Vec<(&str, &str)>> {
+fn parse_file(input: &str) -> IResult<&str, Vec<(&str, &str)>> {
     separated_list1(multispace0, parse_command).parse(input)
 }
 
-pub fn parse_command(input: &str) -> IResult<&str, (&str, &str)> {
+fn parse_command(input: &str) -> IResult<&str, (&str, &str)> {
     pair(
         delimited(multispace0, parse_instruction, multispace0),
         parse_arguments,
@@ -57,4 +63,29 @@ fn parse_arguments(input: &str) -> IResult<&str, &str> {
         multispace0,
     )
     .parse(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_modelfile() {
+        let res = parse("");
+        assert!(res.is_err());
+    }
+    #[test]
+    fn test_wrong_instruction() {
+        assert!(parse("FRO llama").is_err());
+    }
+
+    #[test]
+    fn test_valid_modelfile() {
+        let modelfile = "
+            FROM llama3.2
+            PARAMETER num_ctx 4096
+        ";
+
+        assert!(parse(modelfile).is_ok());
+    }
 }
