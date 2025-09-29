@@ -166,7 +166,7 @@ fn parse_float(param_type: String, value: &str) -> Result<Parameter, String> {
     if let Ok(parsed_val) = value.parse::<f32>() {
         Ok(Parameter::new(param_type, ParamValue::Float(parsed_val)))
     } else {
-        Err(format!("{} not an Integer", param_type))
+        Err(format!("{} not a Float", param_type))
     }
 }
 
