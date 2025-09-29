@@ -4,13 +4,12 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     println!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let modelfile = "FROM llama3.2
 
-    PARAMETER topt 3.5
-    SYSTEM \"newonw\"
+    PARAMETER num_ctx 4096
+    Parameter repeat_penalty 2
     ";
     let res = modelfile::parse(modelfile);
     println!("{:?}", res);
-    let res_2 = modelfile::parse_from_file("../a.modelfile");
-
-    println!("{:?}", res_2);
+    // let res_2 = modelfile::parse_from_file("../a.modelfile");
+    // println!("{:?}", res_2);
     Ok(())
 }
