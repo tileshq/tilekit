@@ -6,10 +6,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     PARAMETER num_ctx 4096
     Parameter repeat_penalty 2
+    TEMPLATE yoyo
     ";
-    let res = modelfile::parse(modelfile);
-    println!("{:?}", res);
-    // let res_2 = modelfile::parse_from_file("../a.modelfile");
-    // println!("{:?}", res_2);
+    // let res = modelfile::parse(modelfile);
+    // println!("{:?}", res);
+    let res_2 = modelfile::parse_from_file("../a.modelfile");
+    println!("{:?}", res_2);
     Ok(())
 }
