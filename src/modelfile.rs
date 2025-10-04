@@ -8,7 +8,7 @@
 // quoted_string -> "<str>"
 // multiline_string -> """<str>"""
 
-// NXT: Work on improving the parser for multiline support using nom for Parameters and Messages
+// NXT: Tests...
 // NXT: Builder fns for adding Instructions
 // NXT: Write to modelfile
 
@@ -19,6 +19,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag_no_case, take_until1, take_while1},
     character::complete::multispace0,
+    combinator::map,
     multi::separated_list1,
     sequence::{delimited, pair},
 };
@@ -35,6 +36,12 @@ enum Role {
     System,
     User,
     Assistant,
+}
+
+#[derive(Clone, Debug)]
+enum Output<'a> {
+    Single(&'a str),
+    Pair((&'a str, &'a str)),
 }
 
 impl FromStr for Role {
@@ -68,14 +75,14 @@ impl Parameter {
 
 #[derive(Debug)]
 pub struct Modelfile {
-    pub from: String,
-    pub parameters: Vec<Parameter>,
-    pub template: String,
-    pub adapter: String,
-    pub system: String,
-    pub license: String,
-    pub messages: Vec<Message>,
-    pub data: String,
+    from: String,
+    parameters: Vec<Parameter>,
+    template: String,
+    adapter: String,
+    system: String,
+    license: String,
+    messages: Vec<Message>,
+    data: String,
 }
 
 pub fn parse_from_file(path: &str) -> Result<Modelfile, String> {
@@ -98,14 +105,19 @@ pub fn parse(input: &str) -> Result<Modelfile, String> {
     }
 }
 
-fn parse_file(input: &str) -> IResult<&str, Vec<(&str, &str)>> {
+fn parse_file(input: &str) -> IResult<&str, Vec<(&str, Output)>> {
     separated_list1(multispace0, parse_command).parse(input)
 }
 
-fn parse_command(input: &str) -> IResult<&str, (&str, &str)> {
+fn parse_command(input: &str) -> IResult<&str, (&str, Output)> {
     pair(
         delimited(multispace0, parse_instruction, multispace0),
-        alt((parse_multiquote, parse_singlequote, parse_singleline)),
+        alt((
+            map(parse_multiquote, Output::Single),
+            map(parse_singlequote, Output::Single),
+            map(parse_parameter0, Output::Pair),
+            map(parse_singleline, Output::Single),
+        )),
     )
     .parse(input)
 }
@@ -121,6 +133,32 @@ fn parse_instruction(input: &str) -> IResult<&str, &str> {
         tag_no_case("MESSAGE"),
         tag_no_case("#"),
     ))
+    .parse(input)
+}
+
+fn parse_parameter0(input: &str) -> IResult<&str, (&str, &str)> {
+    pair(
+        delimited(
+            multispace0,
+            alt((
+                tag_no_case("stop"),
+                tag_no_case("num_ctx"),
+                tag_no_case("repeat_last_n"),
+                tag_no_case("temperature"),
+                tag_no_case("seed"),
+                tag_no_case("top_k"),
+                tag_no_case("top_p"),
+                tag_no_case("min_p"),
+                tag_no_case("num_predict"),
+                tag_no_case("repeat_penalty"),
+                tag_no_case("user"),
+                tag_no_case("assistant"),
+                tag_no_case("system"),
+            )),
+            multispace0,
+        ),
+        alt((parse_multiquote, parse_singlequote, parse_singleline)),
+    )
     .parse(input)
 }
 
@@ -144,7 +182,7 @@ fn parse_singleline(input: &str) -> IResult<&str, &str> {
     )
     .parse(input)
 }
-fn create_modelfile(input: &str, commands: Vec<(&str, &str)>) -> Result<Modelfile, String> {
+fn create_modelfile(input: &str, commands: Vec<(&str, Output)>) -> Result<Modelfile, String> {
     // TODO: There might be a better way
     let mut modelfile: Modelfile = Modelfile {
         from: "".to_owned(),
@@ -160,20 +198,21 @@ fn create_modelfile(input: &str, commands: Vec<(&str, &str)>) -> Result<Modelfil
     for command in commands {
         match (command.0.to_lowercase().as_str(), command.1) {
             //TODO: Can add validations for path if its a gguf file later
-            ("from", arguments) => modelfile.from = arguments.to_owned(),
-            // TODO: Should try to use a nom parser to parse the parameter, since we need to process multiline argument
-            ("parameter", arguments) => match parse_parameter(arguments) {
-                Ok(parameter) => modelfile.parameters.push(parameter),
-                Err(err) => error = err,
-            },
-            ("template", arguments) => modelfile.template = arguments.to_owned(),
-            ("system", arguments) => modelfile.system = arguments.to_owned(),
-            ("adapter", arguments) => modelfile.adapter = arguments.to_owned(),
-            // TODO: Should try to use a nom parser to parse the message, since we need to process multiline argument
-            ("message", arguments) => match parse_message(arguments) {
+            ("from", Output::Single(from)) => modelfile.from = from.to_owned(),
+            ("parameter", Output::Pair((param, argument))) => {
+                match parse_parameter(param, argument) {
+                    Ok(parameter) => modelfile.parameters.push(parameter),
+                    Err(err) => error = err,
+                }
+            }
+            ("template", Output::Single(template)) => modelfile.template = template.to_owned(),
+            ("system", Output::Single(system)) => modelfile.system = system.to_owned(),
+            ("adapter", Output::Single(adapter)) => modelfile.adapter = adapter.to_owned(),
+            ("message", Output::Pair((role, message))) => match parse_message(role, message) {
                 Ok(message) => modelfile.messages.push(message),
                 Err(err) => error = err,
             },
+            ("license", Output::Single(license)) => modelfile.license = license.to_owned(),
             ("#", _) => {}
             _ => error = "Invalid instruction".to_owned(),
         };
@@ -185,14 +224,9 @@ fn create_modelfile(input: &str, commands: Vec<(&str, &str)>) -> Result<Modelfil
     }
 }
 
-fn parse_parameter(arguments: &str) -> Result<Parameter, String> {
-    let param_args: Vec<&str> = arguments.split_whitespace().collect();
-    if param_args.len() != 2 {
-        return Err("Parameter should only have one parameter type and one value".to_owned());
-    }
-
-    let param_type: String = param_args[0].to_lowercase();
-    match (param_type.as_str(), param_args[1]) {
+fn parse_parameter(param: &str, argument: &str) -> Result<Parameter, String> {
+    let param_type: String = param.to_lowercase();
+    match (param_type.as_str(), argument) {
         ("num_ctx", value) => parse_int(param_type, value),
         ("repeat_last_n", value) => parse_int(param_type, value),
         ("repeat_penalty", value) => parse_float(param_type, value),
@@ -231,16 +265,13 @@ fn parse_float(param_type: String, value: &str) -> Result<Parameter, String> {
     }
 }
 
-fn parse_message(arguments: &str) -> Result<Message, String> {
-    let mut param_args: Vec<&str> = arguments.split_whitespace().collect();
-    let binding = param_args[0].to_lowercase();
+fn parse_message(role: &str, message: &str) -> Result<Message, String> {
+    let binding = role.to_lowercase();
     let param_type = binding.as_str();
     if let Ok(role) = param_type.parse::<Role>() {
-        let rest: Vec<_> = param_args.splice(1.., []).collect();
-
         Ok(Message {
             role,
-            message: rest.join(" ").to_owned(),
+            message: message.to_owned(),
         })
     } else {
         Err(format!("{} not a valid role", param_type))
