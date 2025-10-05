@@ -22,6 +22,7 @@ use nom::{
     sequence::{delimited, pair},
 };
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ParamValue {
     Int(i32),
@@ -53,12 +54,14 @@ impl FromStr for Role {
         }
     }
 }
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Parameter {
     param_type: String,
     value: ParamValue,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Message {
     role: Role,
@@ -205,6 +208,12 @@ impl Modelfile {
     }
 }
 
+impl Default for Modelfile {
+    fn default() -> Self {
+        Modelfile::new()
+    }
+}
+
 impl FromStr for Modelfile {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -227,14 +236,15 @@ pub fn parse(input: &str) -> Result<Modelfile, String> {
     match parse_file(input) {
         Ok((rest, parsed_data)) => {
             if !rest.is_empty() {
-                // println!("Parsed file{:?}", parsed_data);
-                Err("Modelfile failed to parse".to_owned())
+                Err(format!(
+                    "Modelfile failed to parse due to unparsable tokens {:?}",
+                    rest
+                ))
             } else {
-                // println!("Parsed file{:?}\n\n", parsed_data);
                 create_modelfile(parsed_data.clone())
             }
         }
-        Err(_err) => Err("Modelfile failed to parse".to_owned()),
+        Err(err) => Err(format!("Modelfile failed to parse due to {:?}", err)),
     }
 }
 
@@ -248,7 +258,7 @@ fn parse_command(input: &str) -> IResult<&str, (&str, Output)> {
         alt((
             map(parse_multiquote, Output::Single),
             map(parse_singlequote, Output::Single),
-            map(parse_parameter0, Output::Pair),
+            map(parse_multi_arguments, Output::Pair),
             map(parse_singleline, Output::Single),
         )),
     )
@@ -269,7 +279,7 @@ fn parse_instruction(input: &str) -> IResult<&str, &str> {
     .parse(input)
 }
 
-fn parse_parameter0(input: &str) -> IResult<&str, (&str, &str)> {
+fn parse_multi_arguments(input: &str) -> IResult<&str, (&str, &str)> {
     pair(
         delimited(
             multispace0,
@@ -337,6 +347,8 @@ fn create_modelfile(commands: Vec<(&str, Output)>) -> Result<Modelfile, String> 
             }
         };
     }
+
+    modelfile.build()?;
     if modelfile.errors.is_empty() {
         Ok(modelfile.clone())
     } else {
@@ -356,7 +368,7 @@ fn parse_parameter(param: &str, argument: &str) -> Result<Parameter, String> {
 
         ("stop", value) => Ok(Parameter::new(
             param_type,
-            ParamValue::Str(value.trim_matches('\"').to_owned()),
+            ParamValue::Str(value.to_owned()),
         )),
 
         ("num_predict", value) => parse_int(param_type, value),
@@ -401,6 +413,8 @@ fn parse_message(role: &str, message: &str) -> Result<Message, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use super::*;
 
     #[test]
@@ -421,5 +435,52 @@ mod tests {
         ";
 
         assert!(parse(modelfile).is_ok());
+    }
+
+    #[test]
+    fn test_parse_modelfile_without_from() {
+        let modelfile = "
+            PARAMETER num_ctx 4096
+        ";
+        assert!(parse(modelfile).is_err())
+    }
+
+    #[test]
+    fn test_parse_multiline_single_arguments() {
+        let modelfile = "
+        FROM llama3.2
+        SYSTEM \"\"\"
+            You are a bot
+            You also not a bot
+            \"\"\"";
+        let res = parse(modelfile);
+        println!("{:?}", res);
+        assert!(parse(modelfile).is_ok())
+    }
+
+    #[test]
+    fn test_modelfile_builder() -> Result<(), Box<dyn Error>> {
+        let mut modelfile = Modelfile::new();
+        modelfile.add_from("llama3.2")?;
+        modelfile.add_parameter("num_ctx", "4096")?;
+        assert!(modelfile.build().is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_building_over_parsed_modelfile() -> Result<(), Box<dyn Error>> {
+        let modelfile_content = "
+            FROM llama3.2
+            PARAMETER num_ctx 4096
+        ";
+        let mut modelfile = parse(modelfile_content)?;
+        modelfile.add_parameter("temperature", "3.2")?;
+        assert!(modelfile.build().is_ok());
+        Ok(())
+    }
+    #[test]
+    fn test_parse_modelfile_from_file() {
+        let modelfile = parse_from_file("assets/tests/a.modelfile").unwrap();
+        assert_eq!(modelfile.from, Some("llama3.2:latest".to_owned()))
     }
 }

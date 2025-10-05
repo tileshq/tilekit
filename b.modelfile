@@ -1,0 +1,3 @@
+# Using llama model yo
+FROM llama3.2
+MESSAGE user hi
