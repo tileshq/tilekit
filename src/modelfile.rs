@@ -8,8 +8,6 @@
 // quoted_string -> "<str>"
 // multiline_string -> """<str>"""
 
-// NXT: Tests...
-
 use std::{fmt::Display, fs, str::FromStr};
 
 use nom::{
@@ -132,7 +130,7 @@ impl Modelfile {
             self.errors.push(error.clone());
             Err(error)
         } else {
-            self.template = Some(value.to_owned());
+            self.license = Some(value.to_owned());
             self.data.push(format!("LICENSE {}", value));
             Ok(())
         }
@@ -234,16 +232,7 @@ pub fn parse_from_file(path: &str) -> Result<Modelfile, String> {
 
 pub fn parse(input: &str) -> Result<Modelfile, String> {
     match parse_file(input) {
-        Ok((rest, parsed_data)) => {
-            if !rest.is_empty() {
-                Err(format!(
-                    "Modelfile failed to parse due to unparsable tokens {:?}",
-                    rest
-                ))
-            } else {
-                create_modelfile(parsed_data.clone())
-            }
-        }
+        Ok((_rest, parsed_data)) => create_modelfile(parsed_data.clone()),
         Err(err) => Err(format!("Modelfile failed to parse due to {:?}", err)),
     }
 }
@@ -415,6 +404,8 @@ fn parse_message(role: &str, message: &str) -> Result<Message, String> {
 mod tests {
     use std::error::Error;
 
+    use nom::Err;
+
     use super::*;
 
     #[test]
@@ -478,9 +469,38 @@ mod tests {
         assert!(modelfile.build().is_ok());
         Ok(())
     }
+
     #[test]
     fn test_parse_modelfile_from_file() {
-        let modelfile = parse_from_file("assets/tests/a.modelfile").unwrap();
+        let modelfile = parse_from_file("fixtures/a.modelfile").unwrap();
         assert_eq!(modelfile.from, Some("llama3.2:latest".to_owned()))
+    }
+
+    #[test]
+    fn test_e2e_pipeline() -> Result<(), Box<dyn Error>> {
+        let modelfile_content = "
+            FROM llama3.2
+            PARAMETER num_ctx 4096
+        ";
+        let mut modelfile = parse(modelfile_content)?;
+        modelfile.add_parameter("temperature", "3.2")?;
+        assert!(modelfile.build().is_ok());
+        let modelfile_str = modelfile.to_string();
+        assert!(modelfile_str.contains("temperature"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_modelfile_from_file_mistral() -> Result<(), Box<dyn Error>> {
+        let modelfile = parse_from_file("fixtures/mistral.modelfile")?;
+        // There should be 8 tokens in the modelfile including comments
+        assert_eq!(modelfile.data.len(), 8);
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_bad_modelfile() {
+        // modelfile has more than 2 FROM
+        assert!(parse_from_file("fixtures/llama_bad.Modelfile").is_err())
     }
 }
