@@ -9,10 +9,8 @@
 // multiline_string -> """<str>"""
 
 // NXT: Tests...
-// NXT: Builder fns for adding Instructions
-// NXT: Write to modelfile
 
-use std::{fs, str::FromStr};
+use std::{fmt::Display, fs, str::FromStr};
 
 use nom::{
     AsChar, IResult, Parser,
@@ -73,7 +71,6 @@ impl Parameter {
     }
 }
 
-//TODO: String type can be later replaced into Option type so that we don't have to pre-allocate
 #[derive(Debug, Clone)]
 pub struct Modelfile {
     from: Option<String>,
@@ -83,7 +80,7 @@ pub struct Modelfile {
     system: Option<String>,
     license: Option<String>,
     messages: Vec<Message>,
-    data: Option<String>,
+    data: Vec<String>,
     errors: Vec<String>,
 }
 
@@ -91,7 +88,7 @@ impl Modelfile {
     pub fn new() -> Self {
         Self {
             from: None,
-            data: None,
+            data: vec![],
             parameters: vec![],
             template: None,
             messages: vec![],
@@ -102,65 +99,78 @@ impl Modelfile {
         }
     }
 
-    pub fn add_from(&mut self, from: &str) -> Result<(), String> {
+    pub fn add_from(&mut self, value: &str) -> Result<(), String> {
         if self.from.is_some() {
             let error = "Modelfile can only have one FROM instruction".to_owned();
             self.errors.push(error.clone());
             Err(error)
         } else {
-            self.from = Some(from.to_owned());
+            self.from = Some(value.to_owned());
+            self.data.push(format!("FROM {}", value));
             Ok(())
         }
     }
 
-    pub fn add_template(&mut self, from: &str) -> Result<(), String> {
+    pub fn add_template(&mut self, value: &str) -> Result<(), String> {
         if self.template.is_some() {
             let error = "Modelfile can only have one TEMPLATE instruction".to_owned();
             self.errors.push(error.clone());
             Err(error)
         } else {
-            self.template = Some(from.to_owned());
+            self.template = Some(value.to_owned());
+            self.data.push(format!("TEMPLATE {}", value));
             Ok(())
         }
     }
 
-    pub fn add_license(&mut self, from: &str) -> Result<(), String> {
+    pub fn add_license(&mut self, value: &str) -> Result<(), String> {
         if self.license.is_some() {
             let error = "Modelfile can only have one LICENSE instruction".to_owned();
             self.errors.push(error.clone());
             Err(error)
         } else {
-            self.template = Some(from.to_owned());
+            self.template = Some(value.to_owned());
+            self.data.push(format!("LICENSE {}", value));
             Ok(())
         }
     }
 
-    pub fn add_adapter(&mut self, from: &str) -> Result<(), String> {
+    pub fn add_adapter(&mut self, value: &str) -> Result<(), String> {
         if self.adapter.is_some() {
             let error = "Modelfile can only have one ADAPTER instruction".to_owned();
             self.errors.push(error.clone());
             Err(error)
         } else {
-            self.adapter = Some(from.to_owned());
+            self.adapter = Some(value.to_owned());
+            self.data.push(format!("ADAPTER {}", value));
             Ok(())
         }
     }
 
-    pub fn add_system(&mut self, from: &str) -> Result<(), String> {
+    pub fn add_system(&mut self, value: &str) -> Result<(), String> {
         if self.system.is_some() {
             let error = "Modelfile can only have one SYSTEM instruction".to_owned();
             self.errors.push(error.clone());
+
+            self.data.push(format!("SYSTEM {}", value));
             Err(error)
         } else {
-            self.system = Some(from.to_owned());
+            self.system = Some(value.to_owned());
             Ok(())
         }
+    }
+
+    pub fn add_comment(&mut self, value: &str) -> Result<(), String> {
+        self.data.push(format!("# {}", value));
+        Ok(())
     }
 
     pub fn add_parameter(&mut self, param_type: &str, param_value: &str) -> Result<(), String> {
         match parse_parameter(param_type, param_value) {
             Ok(parameter) => {
                 self.parameters.push(parameter);
+                self.data
+                    .push(format!("PARAMETER {} {}", param_type, param_value));
                 Ok(())
             }
             Err(err) => {
@@ -172,8 +182,9 @@ impl Modelfile {
 
     pub fn add_message(&mut self, role: &str, message: &str) -> Result<(), String> {
         match parse_message(role, message) {
-            Ok(message) => {
-                self.messages.push(message);
+            Ok(msg) => {
+                self.messages.push(msg);
+                self.data.push(format!("MESSAGE {} {}", role, message));
                 Ok(())
             }
             Err(err) => {
@@ -194,6 +205,19 @@ impl Modelfile {
     }
 }
 
+impl FromStr for Modelfile {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse(s)
+    }
+}
+
+impl Display for Modelfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.data.join("\n"))
+    }
+}
+
 pub fn parse_from_file(path: &str) -> Result<Modelfile, String> {
     let content = fs::read_to_string(path).expect("File read failed");
     parse(content.as_str())
@@ -207,7 +231,7 @@ pub fn parse(input: &str) -> Result<Modelfile, String> {
                 Err("Modelfile failed to parse".to_owned())
             } else {
                 // println!("Parsed file{:?}\n\n", parsed_data);
-                create_modelfile(input, parsed_data.clone())
+                create_modelfile(parsed_data.clone())
             }
         }
         Err(_err) => Err("Modelfile failed to parse".to_owned()),
@@ -291,10 +315,9 @@ fn parse_singleline(input: &str) -> IResult<&str, &str> {
     )
     .parse(input)
 }
-fn create_modelfile(input: &str, commands: Vec<(&str, Output)>) -> Result<Modelfile, String> {
+fn create_modelfile(commands: Vec<(&str, Output)>) -> Result<Modelfile, String> {
     // TODO: There might be a better way
     let mut modelfile: Modelfile = Modelfile::new();
-    modelfile.data = Some(input.to_owned());
     for command in commands {
         let _ = match (command.0.to_lowercase().as_str(), command.1) {
             //TODO: Can add validations for path if its a gguf file later
@@ -307,7 +330,7 @@ fn create_modelfile(input: &str, commands: Vec<(&str, Output)>) -> Result<Modelf
             ("adapter", Output::Single(adapter)) => modelfile.add_adapter(adapter),
             ("message", Output::Pair((role, message))) => modelfile.add_message(role, message),
             ("license", Output::Single(license)) => modelfile.add_license(license),
-            ("#", _) => Ok(()),
+            ("#", Output::Single(comment)) => modelfile.add_comment(comment),
             _ => {
                 modelfile.errors.push(String::from("Invalid instruction"));
                 Ok(())
