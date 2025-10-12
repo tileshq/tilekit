@@ -6,10 +6,12 @@ use tile::{
 };
 
 pub fn run(modelfile: &str) {
-    // parse the modelfile
-    // call the mlx runner and pass the modelfile
-    let modelfile = modelfile::parse_from_file(modelfile).expect("Failed to read modelfile");
-    mlx::run(&modelfile);
+    match modelfile::parse_from_file(modelfile) {
+        Ok(modelfile) => {
+            mlx::run(modelfile);
+        }
+        Err(err) => println!("{}", err),
+    }
 }
 
 pub fn check_health() {

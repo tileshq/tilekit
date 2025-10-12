@@ -22,10 +22,20 @@ use nom::{
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-enum ParamValue {
+pub enum ParamValue {
     Int(i32),
     Float(f32),
     Str(String),
+}
+
+impl Display for ParamValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParamValue::Int(value) => write!(f, "{}", value),
+            ParamValue::Str(value) => write!(f, "{}", value),
+            ParamValue::Float(value) => write!(f, "{}", value),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -55,8 +65,8 @@ impl FromStr for Role {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Parameter {
-    param_type: String,
-    value: ParamValue,
+    pub param_type: String,
+    pub value: ParamValue,
 }
 
 #[allow(dead_code)]
@@ -226,8 +236,10 @@ impl Display for Modelfile {
 }
 
 pub fn parse_from_file(path: &str) -> Result<Modelfile, String> {
-    let content = fs::read_to_string(path).expect("File read failed");
-    parse(content.as_str())
+    match fs::read_to_string(path) {
+        Ok(content) => parse(content.as_str()),
+        Err(err) => Err(format!("Parsing Modelfile failed due to {}", err)),
+    }
 }
 
 pub fn parse(input: &str) -> Result<Modelfile, String> {
