@@ -1,7 +1,7 @@
 // Module that handles CLI commands
 
-use tilekit::{
-    modelfile::{self, Modelfile},
+use tile::{
+    core::{health, modelfile},
     runner::mlx,
 };
 
@@ -10,4 +10,8 @@ pub fn run(modelfile: &str) {
     // call the mlx runner and pass the modelfile
     let modelfile = modelfile::parse_from_file(modelfile).expect("Failed to read modelfile");
     mlx::run(&modelfile);
+}
+
+pub fn check_health() {
+    health::check_health();
 }

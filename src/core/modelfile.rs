@@ -54,14 +54,14 @@ impl FromStr for Role {
 }
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct Parameter {
+pub struct Parameter {
     param_type: String,
     value: ParamValue,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct Message {
+pub struct Message {
     role: Role,
     message: String,
 }

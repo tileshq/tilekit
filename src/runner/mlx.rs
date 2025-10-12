@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::modelfile::Modelfile;
+use crate::core::modelfile::Modelfile;
 
 pub fn run(modelfile: &Modelfile) {
     println!("{:?}", modelfile);

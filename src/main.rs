@@ -1,7 +1,6 @@
 use std::error::Error;
 
 use clap::{Parser, Subcommand};
-use tilekit::modelfile;
 mod commands;
 #[derive(Debug, Parser)]
 #[command(name = "tilekit")]
@@ -13,30 +12,21 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Runs the given Modelfile
-    Run { modelfile: String },
+    /// Runs the given modelfile Path
+    Run { modelfile_path: String },
+
+    /// Checks the status of dependencies
+    Health,
 }
 pub fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Run { modelfile } => {
-            commands::run(modelfile.as_str());
+        Commands::Run { modelfile_path } => {
+            commands::run(modelfile_path.as_str());
+        }
+        Commands::Health => {
+            commands::check_health();
         }
     }
-    // let mut modf = modelfile::parse_from_file("fixtures/a.modelfile")?;
-    // modf.add_parameter("temperature", "0.5")?;
-    // modf.add_message("user", "Is Rust a functional language")?;
-    // modf.add_message("assistant", "no")?;
-    // modf.build()?;
-    // println!("{:?}", modf.to_string());
-
-    // let mut mlx = Command::new("mlx_lm.chat")
-    //     .arg("--model")
-    //     .arg("mlx-community/dolphin3.0-llama3.2-1B-4Bit")
-    //     .spawn()
-    //     .expect("mlx runner failed");
-
-    // mlx.wait().expect("wait failed");
-
     Ok(())
 }
