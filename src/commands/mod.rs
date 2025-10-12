@@ -1,6 +1,6 @@
 // Module that handles CLI commands
 
-use tile::{
+use tiles::{
     core::{health, modelfile},
     runner::mlx,
 };
