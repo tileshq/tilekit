@@ -74,15 +74,15 @@ impl Parameter {
 
 #[derive(Debug, Clone)]
 pub struct Modelfile {
-    from: Option<String>,
-    parameters: Vec<Parameter>,
-    template: Option<String>,
-    adapter: Option<String>,
-    system: Option<String>,
-    license: Option<String>,
-    messages: Vec<Message>,
-    data: Vec<String>,
-    errors: Vec<String>,
+    pub from: Option<String>,
+    pub parameters: Vec<Parameter>,
+    pub template: Option<String>,
+    pub adapter: Option<String>,
+    pub system: Option<String>,
+    pub license: Option<String>,
+    pub messages: Vec<Message>,
+    pub data: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 impl Modelfile {
@@ -403,8 +403,6 @@ fn parse_message(role: &str, message: &str) -> Result<Message, String> {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-
-    use nom::Err;
 
     use super::*;
 
