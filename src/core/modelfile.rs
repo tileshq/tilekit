@@ -22,10 +22,20 @@ use nom::{
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-enum ParamValue {
+pub enum ParamValue {
     Int(i32),
     Float(f32),
     Str(String),
+}
+
+impl Display for ParamValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParamValue::Int(value) => write!(f, "{}", value),
+            ParamValue::Str(value) => write!(f, "{}", value),
+            ParamValue::Float(value) => write!(f, "{}", value),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -54,14 +64,14 @@ impl FromStr for Role {
 }
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct Parameter {
-    param_type: String,
-    value: ParamValue,
+pub struct Parameter {
+    pub param_type: String,
+    pub value: ParamValue,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct Message {
+pub struct Message {
     role: Role,
     message: String,
 }
@@ -74,15 +84,15 @@ impl Parameter {
 
 #[derive(Debug, Clone)]
 pub struct Modelfile {
-    from: Option<String>,
-    parameters: Vec<Parameter>,
-    template: Option<String>,
-    adapter: Option<String>,
-    system: Option<String>,
-    license: Option<String>,
-    messages: Vec<Message>,
-    data: Vec<String>,
-    errors: Vec<String>,
+    pub from: Option<String>,
+    pub parameters: Vec<Parameter>,
+    pub template: Option<String>,
+    pub adapter: Option<String>,
+    pub system: Option<String>,
+    pub license: Option<String>,
+    pub messages: Vec<Message>,
+    pub data: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 impl Modelfile {
@@ -226,8 +236,10 @@ impl Display for Modelfile {
 }
 
 pub fn parse_from_file(path: &str) -> Result<Modelfile, String> {
-    let content = fs::read_to_string(path).expect("File read failed");
-    parse(content.as_str())
+    match fs::read_to_string(path) {
+        Ok(content) => parse(content.as_str()),
+        Err(err) => Err(format!("Parsing Modelfile failed due to {}", err)),
+    }
 }
 
 pub fn parse(input: &str) -> Result<Modelfile, String> {
@@ -403,8 +415,6 @@ fn parse_message(role: &str, message: &str) -> Result<Message, String> {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-
-    use nom::Err;
 
     use super::*;
 

@@ -1,14 +1,32 @@
 use std::error::Error;
 
-use tilekit::modelfile;
-pub fn main() -> Result<(), Box<dyn Error>> {
-    println!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+use clap::{Parser, Subcommand};
+mod commands;
+#[derive(Debug, Parser)]
+#[command(name = "tilekit")]
+#[command(version, about = "Run, fine-tune models locally with Modelfile", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    let mut modf = modelfile::parse_from_file("fixtures/a.modelfile")?;
-    modf.add_parameter("temperature", "0.5")?;
-    modf.add_message("user", "Is Rust a functional language")?;
-    modf.add_message("assistant", "no")?;
-    modf.build()?;
-    println!("{:?}", modf.to_string());
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Runs the given modelfile Path
+    Run { modelfile_path: String },
+
+    /// Checks the status of dependencies
+    Health,
+}
+pub fn main() -> Result<(), Box<dyn Error>> {
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Run { modelfile_path } => {
+            commands::run(modelfile_path.as_str());
+        }
+        Commands::Health => {
+            commands::check_health();
+        }
+    }
     Ok(())
 }
