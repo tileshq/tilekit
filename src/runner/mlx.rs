@@ -38,10 +38,22 @@ pub fn run(modelfile: Modelfile) {
         args.push("--adapter-path".to_owned());
         args.push(adapter_path);
     }
-    let mut mlx = Command::new("mlx_lm.chat")
-        .args(args)
-        .spawn()
-        .expect("mlx runner failed");
+    let mut mlx = match Command::new("mlx_lm.chat").args(args).spawn() {
+        Ok(child) => child,
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                eprintln!("❌ Error: mlx_lm.chat command not found");
+                eprintln!("💡 Hint: Install mlx-lm by running: pip install mlx-lm");
+                eprintln!("📝 Note: mlx-lm is only available on macOS with Apple Silicon");
+                std::process::exit(1);
+            } else {
+                eprintln!("❌ Error: Failed to spawn mlx_lm.chat: {}", e);
+                std::process::exit(1);
+            }
+        }
+    };
 
-    mlx.wait().expect("wait failed");
+    if let Err(err) = mlx.wait() {
+        eprintln!("❌ Error: Failed to wait for mlx_lm: {}", err);
+    }
 }

@@ -249,11 +249,11 @@ pub fn parse(input: &str) -> Result<Modelfile, String> {
     }
 }
 
-fn parse_file(input: &str) -> IResult<&str, Vec<(&str, Output)>> {
+fn parse_file(input: &str) -> IResult<&str, Vec<(&str, Output<'_>)>> {
     separated_list1(multispace0, parse_command).parse(input)
 }
 
-fn parse_command(input: &str) -> IResult<&str, (&str, Output)> {
+fn parse_command(input: &str) -> IResult<&str, (&str, Output<'_>)> {
     pair(
         delimited(multispace0, parse_instruction, multispace0),
         alt((
