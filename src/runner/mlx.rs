@@ -38,9 +38,7 @@ pub fn run(modelfile: Modelfile) {
         args.push("--adapter-path".to_owned());
         args.push(adapter_path);
     }
-    let mut mlx = match Command::new("mlx_lm.chat")
-        .args(args)
-        .spawn() {
+    let mut mlx = match Command::new("mlx_lm.chat").args(args).spawn() {
         Ok(child) => child,
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
@@ -55,5 +53,7 @@ pub fn run(modelfile: Modelfile) {
         }
     };
 
-    mlx.wait().expect("wait failed");
+    if let Err(err) = mlx.wait() {
+        eprintln!("❌ Error: Failed to wait for mlx_lm: {}", err);
+    }
 }
