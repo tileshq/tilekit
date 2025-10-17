@@ -1,0 +1,23 @@
+language: "en-US"
+early_access: false
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: false
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  review_status: true
+  commit_status: true
+  collapse_walkthrough: true
+  changed_files_summary: false
+  sequence_diagrams: true
+  assess_linked_issues: true
+  related_issues: true
+  path_instructions:
+    - path: "**/*.{rs,toml}"
+      instructions:
+        "Review the Rust code for conformity with best practices in Rust,
+        Systems programming. Highlight any deviations."
+
