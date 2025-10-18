@@ -50,6 +50,14 @@ enum Output<'a> {
     Single(&'a str),
     Pair((&'a str, &'a str)),
 }
+impl<'a> Display for Output<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Single(word) => write!(f, "{}", word),
+            Self::Pair((word, word_1)) => write!(f, "{} {}", word, word_1),
+        }
+    }
+}
 
 impl FromStr for Role {
     type Err = String;
@@ -341,9 +349,15 @@ fn create_modelfile(commands: Vec<(&str, Output)>) -> Result<Modelfile, String> 
             ("adapter", Output::Single(adapter)) => modelfile.add_adapter(adapter),
             ("message", Output::Pair((role, message))) => modelfile.add_message(role, message),
             ("license", Output::Single(license)) => modelfile.add_license(license),
-            ("#", Output::Single(comment)) => modelfile.add_comment(comment),
-            _ => {
-                modelfile.errors.push(String::from("Invalid instruction"));
+            ("#", comment) => {
+                let comment_str = comment.to_string();
+                modelfile.add_comment(&comment_str)
+            }
+            (instruction, command) => {
+                modelfile.errors.push(format!(
+                    "Invalid instruction Instruction: `{}` command: `{}`",
+                    instruction, command
+                ));
                 Ok(())
             }
         };
@@ -433,6 +447,25 @@ mod tests {
         let modelfile = "
             FROM llama3.2
             PARAMETER num_ctx 4096
+        ";
+
+        assert!(parse(modelfile).is_ok());
+    }
+    #[test]
+    fn test_invalid_instruction() {
+        let modelfile = "
+            FROM llama3.2
+            adapter num_ctx 4096
+        ";
+
+        assert!(parse(modelfile).is_err());
+    }
+
+    #[test]
+    fn test_valid_comment() {
+        let modelfile = "
+            FROM llama3.2
+            # system num_ctx 4096
         ";
 
         assert!(parse(modelfile).is_ok());
