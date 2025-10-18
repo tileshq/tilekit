@@ -349,12 +349,14 @@ fn create_modelfile(commands: Vec<(&str, Output)>) -> Result<Modelfile, String> 
             ("adapter", Output::Single(adapter)) => modelfile.add_adapter(adapter),
             ("message", Output::Pair((role, message))) => modelfile.add_message(role, message),
             ("license", Output::Single(license)) => modelfile.add_license(license),
-            ("#", comment) => modelfile.add_comment(comment.to_string().as_str()),
+            ("#", comment) => {
+                let comment_str = comment.to_string();
+                modelfile.add_comment(&comment_str)
+            }
             (instruction, command) => {
                 modelfile.errors.push(format!(
                     "Invalid instruction Instruction: `{}` command: `{}`",
-                    instruction,
-                    command.to_string()
+                    instruction, command
                 ));
                 Ok(())
             }
