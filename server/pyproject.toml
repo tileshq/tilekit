@@ -6,7 +6,8 @@ requires-python = ">=3.10"
 dependencies = [
     "fastapi",
     "uvicorn",
-    "mlx-lm"
+    "mlx-lm",
+    "black"
 ]
 
 [build-system]
