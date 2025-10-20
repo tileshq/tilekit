@@ -189,7 +189,7 @@ def count_tokens(text: str) -> int:
 
 @app.get("/ping")
 async def ping():
-    return {"message": "ping"} 
+    return {"message": "Badda-Bing Badda-Bang"} 
 
 @app.post("/start")
 async def start_model(request: StartRequest):
