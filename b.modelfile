@@ -1,3 +1,1 @@
-# Using llama model yo
-FROM llama3.2
-MESSAGE user hi
+FROM mlx-community/dolphin3.0-llama3.2-1B-4Bit
