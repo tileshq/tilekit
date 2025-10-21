@@ -1,5 +1,5 @@
 # Tilekit
-Modelfile-based SDK that lets developers to lets developers to customize local models and agent experiences within [Tiles](https://www.tiles.run/).
+Modelfile-based SDK that lets developers to lets developers customize local models and agent experiences within [Tiles](https://www.tiles.run/).
 
 ## License
 
