@@ -1,7 +1,9 @@
+use anyhow::{Context, Result};
 use reqwest::Client;
 use serde_json::{Value, json};
-use std::ffi::NulError;
 use std::io::Write;
+use std::path::PathBuf;
+use std::{env, fs};
 use std::{io, process::Command};
 
 use crate::core::modelfile::Modelfile;
@@ -71,13 +73,14 @@ fn run_model_by_sub_process(modelfile: Modelfile) {
 }
 
 async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
-    // println!("gonna ping");
-    // let _ = ping().await;
     let stdin = io::stdin();
     let mut stdout = io::stdout();
-    // loading the model from mem-agent via daeomn server
+    // loading the model from mem-agent via daemon server
+    let memory_path = get_memory_path()
+        .context("Retrieving memory_path failed")
+        .unwrap();
     let modelname = modelfile.from.as_ref().unwrap();
-    load_model(&modelname).await.unwrap();
+    load_model(&modelname, &memory_path).await.unwrap();
     println!("Running in interactive mode");
     loop {
         print!(">> ");
@@ -109,10 +112,11 @@ async fn ping() -> reqwest::Result<()> {
     Ok(())
 }
 
-async fn load_model(model_name: &str) -> Result<(), String> {
+async fn load_model(model_name: &str, memory_path: &str) -> Result<(), String> {
     let client = Client::new();
     let body = json!({
-        "model": model_name
+        "model": model_name,
+        "memory_path": memory_path
     });
     let res = client
         .post("http://127.0.0.1:6969/start")
@@ -120,7 +124,6 @@ async fn load_model(model_name: &str) -> Result<(), String> {
         .send()
         .await
         .unwrap();
-    // println!("{:?}", res);
     if res.status() == 200 {
         Ok(())
     } else {
@@ -150,5 +153,43 @@ async fn chat(input: &str, model_name: &str) -> Result<String, String> {
         Ok(content.to_owned())
     } else {
         Err(String::from("request failed"))
+    }
+}
+
+fn get_memory_path() -> Result<String> {
+    let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+    let config_dir = match env::var("XDG_CONFIG_HOME") {
+        Ok(val) => PathBuf::from(val),
+        Err(_err) => home_dir.join(".config"),
+    };
+
+    let data_dir = match env::var("XDG_DATA_HOME") {
+        Ok(val) => PathBuf::from(val),
+        Err(_err) => home_dir.join(".local/share"),
+    };
+
+    let tiles_config_dir = config_dir.join("tiles");
+    let tiles_data_dir = data_dir.join("tiles");
+    let mut is_memory_path_found: bool = false;
+    let mut memory_path: String = String::from("");
+    if tiles_config_dir.is_dir() {
+        if let Ok(content) = fs::read_to_string(tiles_config_dir.join(".memory_path")) {
+            memory_path = content;
+            is_memory_path_found = true;
+        }
+    }
+
+    if is_memory_path_found {
+        Ok(memory_path)
+    } else {
+        let memory_path = tiles_data_dir.join("memory");
+        fs::create_dir_all(&memory_path).context("Failed to create tiles memory directory")?;
+        fs::create_dir_all(&tiles_config_dir).context("Failed to create tiles config directory")?;
+        fs::write(
+            tiles_config_dir.join(".memory_path"),
+            memory_path.to_str().unwrap(),
+        )
+        .context("Failed to write the default path to .memory_path")?;
+        Ok(memory_path.to_string_lossy().to_string())
     }
 }

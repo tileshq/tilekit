@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 from fastapi import FastAPI, HTTPException
-from .config import SYSTEM_PROMPT,MEMORY_PATH
+from .config import SYSTEM_PROMPT
 
 import json
 import time
@@ -33,7 +33,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .cache_utils import (
-    detect_framework,
     get_model_path
 )
 from .mlx_runner import MLXRunner
@@ -46,6 +45,7 @@ _current_model_path: Optional[str] = None
 _default_max_tokens: Optional[int] = None  # Use dynamic model-aware limits by default
 _runner: MLXRunner = {}
 _max_tool_turns = 5
+_memory_path = ""
 
 class CompletionRequest(BaseModel):
     model: str
@@ -102,6 +102,7 @@ class ModelInfo(BaseModel):
 
 class StartRequest(BaseModel):
     model: str
+    memory_path: str
 
 class Agent:
     def __init__(
@@ -194,10 +195,10 @@ async def ping():
 @app.post("/start")
 async def start_model(request: StartRequest):
     """Load the model and start the agent"""
-    global _messages, _runner
+    global _messages, _runner,_memory_path
     print(str(request))
     _messages = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
-
+    _memory_path = request.memory_path
     try:
         _runner = get_or_load_model(request.model)
         return {"message": "Model loaded"}
@@ -207,7 +208,7 @@ async def start_model(request: StartRequest):
 @app.post("/v1/chat/completions")
 async def create_chat_completion(request: ChatCompletionRequest):
     """Create a chat completion."""
-    global _messages, _max_tool_turns
+    global _messages, _max_tool_turns, _memory_path
     try:
         runner = get_or_load_model(request.model)
 
@@ -253,7 +254,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
             create_memory_if_not_exists()
             result = execute_sandboxed_code(
                 code=python_code,
-                allowed_path=MEMORY_PATH,
+                allowed_path=_memory_path,
                 import_module="server.mem_agent.tools",
             )
 
@@ -280,7 +281,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
                 create_memory_if_not_exists()
                 result = execute_sandboxed_code(
                     code=python_code,
-                    allowed_path=MEMORY_PATH,
+                    allowed_path=_memory_path,
                     import_module="server.mem_agent.tools",
                 )
             else:
