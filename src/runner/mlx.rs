@@ -80,7 +80,7 @@ async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
         .context("Retrieving memory_path failed")
         .unwrap();
     let modelname = modelfile.from.as_ref().unwrap();
-    load_model(&modelname, &memory_path).await.unwrap();
+    load_model(modelname, &memory_path).await.unwrap();
     println!("Running in interactive mode");
     loop {
         print!(">> ");
@@ -94,7 +94,7 @@ async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
                 break;
             }
             _ => {
-                if let Ok(response) = chat(input, &modelname).await {
+                if let Ok(response) = chat(input, modelname).await {
                     println!(">> {}", response)
                 } else {
                     println!(">> failed to respond")
@@ -105,12 +105,12 @@ async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
     Ok(())
 }
 
-async fn ping() -> reqwest::Result<()> {
-    let client = Client::new();
-    let res = client.get("http://127.0.0.1:6969/ping").send().await?;
-    println!("{}", res.text().await?);
-    Ok(())
-}
+// async fn ping() -> reqwest::Result<()> {
+//     let client = Client::new();
+//     let res = client.get("http://127.0.0.1:6969/ping").send().await?;
+//     println!("{}", res.text().await?);
+//     Ok(())
+// }
 
 async fn load_model(model_name: &str, memory_path: &str) -> Result<(), String> {
     let client = Client::new();
@@ -172,11 +172,11 @@ fn get_memory_path() -> Result<String> {
     let tiles_data_dir = data_dir.join("tiles");
     let mut is_memory_path_found: bool = false;
     let mut memory_path: String = String::from("");
-    if tiles_config_dir.is_dir() {
-        if let Ok(content) = fs::read_to_string(tiles_config_dir.join(".memory_path")) {
-            memory_path = content;
-            is_memory_path_found = true;
-        }
+    if tiles_config_dir.is_dir()
+        && let Ok(content) = fs::read_to_string(tiles_config_dir.join(".memory_path"))
+    {
+        memory_path = content;
+        is_memory_path_found = true;
     }
 
     if is_memory_path_found {
