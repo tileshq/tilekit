@@ -18,11 +18,13 @@ enum Commands {
     /// Checks the status of dependencies
     Health,
 }
-pub fn main() -> Result<(), Box<dyn Error>> {
+
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Run { modelfile_path } => {
-            commands::run(modelfile_path.as_str());
+            commands::run(modelfile_path.as_str()).await;
         }
         Commands::Health => {
             commands::check_health();

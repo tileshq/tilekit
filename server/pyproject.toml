@@ -1,0 +1,15 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "Local MLX inference server for the Tiles CLI"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "mlx-lm",
+    "black"
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
