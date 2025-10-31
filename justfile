@@ -13,3 +13,9 @@ check:
 
 serve:
     uv run --frozen python3 -m server.main
+
+bundle:
+    ./scripts/bundler.sh
+
+install:
+    ./scripts/install.sh
