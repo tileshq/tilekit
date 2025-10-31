@@ -10,3 +10,6 @@ check:
     just fmt
     just lint
     cargo test
+
+serve:
+    uv run --frozen python3 -m server.main

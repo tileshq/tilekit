@@ -1,6 +1,19 @@
 # Tilekit
 Modelfile-based SDK that lets developers to lets developers to customize local models and agent experiences within [Tiles](https://www.tiles.run/).
 
+## Dev setup
+
+- Clone the repo
+- `cargo build` (for setting up local rust env)
+- Install [uv](https://docs.astral.sh/uv/) for python server
+- `cd server`
+- `uv sync`
+
+### Running
+
+- Go to root and run `just serve` in another terminal to run the server
+- Run the rust cli using cargo as usual
+
 ## License
 
 This project is dual-licensed under MIT and Apache 2.0 terms:
