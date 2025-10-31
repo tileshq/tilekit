@@ -4,6 +4,7 @@ Modelfile-based SDK that lets developers to lets developers customize local mode
 ## Dev setup
 
 - Clone the repo
+- Install [just](https://github.com/casey/just)
 - `cargo build` (for setting up local rust env)
 - Install [uv](https://docs.astral.sh/uv/) for python server
 - `cd server`
