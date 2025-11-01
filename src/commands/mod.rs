@@ -20,3 +20,11 @@ pub async fn run(modelfile: &str) {
 pub fn check_health() {
     health::check_health();
 }
+
+pub fn start_server() {
+    let _ = mlx::start_server_daemon();
+}
+
+pub fn stop_server() {
+    let _ = mlx::stop_server_daemon();
+}
