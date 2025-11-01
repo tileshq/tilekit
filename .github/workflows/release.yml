@@ -1,0 +1,30 @@
+# name: Build and release (macOS)
+
+# on:
+#   push:
+#     tags:
+#       - "v*" 
+
+# jobs:
+#   build-macos:
+#     runs-on: macos-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Install Rust
+#         uses: dtolnay/rust-toolchain@stable
+
+#       - name: Build bundle
+#         run: |
+#           chmod +x scripts/bundler.sh
+#           ./scripts/bundler.sh
+
+#       - name: Upload artifact to release
+#         uses: softprops/action-gh-release@v1
+#         with:
+#           files: dist/tiles-v*-x86_64-darwin.tar.gz
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
