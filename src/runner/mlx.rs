@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde_json::{Value, json};
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::{env, fs};
 use std::{io, process::Command};
 
@@ -72,6 +73,52 @@ fn run_model_by_sub_process(modelfile: Modelfile) {
     }
 }
 
+#[allow(clippy::zombie_processes)]
+pub fn start_server_daemon() -> Result<()> {
+    // check if the server is running
+    // start server as a child process
+    // save the pid in a file under ~/.config/tiles/server_pid
+    let config_dir = get_config_dir()?;
+    let server_dir = get_server_dir()?;
+    let pid_file = config_dir.join("server.pid");
+    if pid_file.exists() {
+        eprintln!("Server is already running");
+        return Ok(());
+    }
+
+    let child = Command::new("uv")
+        .args([
+            "run",
+            "--project",
+            server_dir.to_str().unwrap(),
+            "python",
+            "-m",
+            "server.main",
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to start server");
+    fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
+    std::fs::write(pid_file, child.id().to_string()).unwrap();
+    println!("Server started with PID {}", child.id());
+    Ok(())
+}
+
+pub fn stop_server_daemon() -> Result<()> {
+    let pid_file = get_config_dir()?.join("server.pid");
+
+    if !pid_file.exists() {
+        eprintln!("Server is not running");
+        return Ok(());
+    }
+
+    let pid = std::fs::read_to_string(&pid_file).unwrap();
+    Command::new("kill").arg(pid.trim()).status().unwrap();
+    std::fs::remove_file(pid_file).unwrap();
+    println!("Server stopped.");
+    Ok(())
+}
 async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -157,19 +204,8 @@ async fn chat(input: &str, model_name: &str) -> Result<String, String> {
 }
 
 fn get_memory_path() -> Result<String> {
-    let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-    let config_dir = match env::var("XDG_CONFIG_HOME") {
-        Ok(val) => PathBuf::from(val),
-        Err(_err) => home_dir.join(".config"),
-    };
-
-    let data_dir = match env::var("XDG_DATA_HOME") {
-        Ok(val) => PathBuf::from(val),
-        Err(_err) => home_dir.join(".local/share"),
-    };
-
-    let tiles_config_dir = config_dir.join("tiles");
-    let tiles_data_dir = data_dir.join("tiles");
+    let tiles_config_dir = get_config_dir()?;
+    let tiles_data_dir = get_data_dir()?;
     let mut is_memory_path_found: bool = false;
     let mut memory_path: String = String::from("");
     if tiles_config_dir.is_dir()
@@ -191,5 +227,46 @@ fn get_memory_path() -> Result<String> {
         )
         .context("Failed to write the default path to .memory_path")?;
         Ok(memory_path.to_string_lossy().to_string())
+    }
+}
+
+fn get_server_dir() -> Result<PathBuf> {
+    if cfg!(debug_assertions) {
+        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
+        Ok(base_dir.join("server"))
+    } else {
+        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+        let data_dir = match env::var("XDG_DATA_HOME") {
+            Ok(val) => PathBuf::from(val),
+            Err(_err) => home_dir.join(".local/share"),
+        };
+        Ok(data_dir.join("tiles/server"))
+    }
+}
+fn get_config_dir() -> Result<PathBuf> {
+    if cfg!(debug_assertions) {
+        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
+        Ok(base_dir.join(".tiles_dev/tiles"))
+    } else {
+        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+        let config_dir = match env::var("XDG_CONFIG_HOME") {
+            Ok(val) => PathBuf::from(val),
+            Err(_err) => home_dir.join(".config"),
+        };
+        Ok(config_dir.join("tiles"))
+    }
+}
+
+fn get_data_dir() -> Result<PathBuf> {
+    if cfg!(debug_assertions) {
+        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
+        Ok(base_dir.join(".tiles_dev/tiles"))
+    } else {
+        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+        let data_dir = match env::var("XDG_DATA_HOME") {
+            Ok(val) => PathBuf::from(val),
+            Err(_err) => home_dir.join(".local/share"),
+        };
+        Ok(data_dir.join("tiles"))
     }
 }

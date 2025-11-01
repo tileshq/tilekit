@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV="dev" # prod is another env, try taking it from github env
+ENV="prod" # prod is another env, try taking it from github env
 REPO="tilesprivacy/tilekit" 
 # VERSION="${TILES_VERSION:-latest}"       
 VERSION="0.1.0"       
@@ -37,7 +37,6 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 log "⬇️  Downloading Tiles (${VERSION}) for ${ARCH}-${OS}..."
-
 
 
 if [[ "$ENV" == "prod" ]]; then

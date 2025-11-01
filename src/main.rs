@@ -1,9 +1,9 @@
 use std::error::Error;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 mod commands;
 #[derive(Debug, Parser)]
-#[command(name = "tilekit")]
+#[command(name = "tiles")]
 #[command(version, about = "Run, fine-tune models locally with Modelfile", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -17,8 +17,27 @@ enum Commands {
 
     /// Checks the status of dependencies
     Health,
+
+    /// start or stop the daemon server
+    Server(ServerArgs),
 }
 
+#[derive(Debug, Args)]
+#[command(args_conflicts_with_subcommands = true)]
+#[command(flatten_help = true)]
+struct ServerArgs {
+    #[command(subcommand)]
+    command: Option<ServerCommands>,
+}
+
+#[derive(Debug, Subcommand)]
+enum ServerCommands {
+    /// Start the py server as a daemon
+    Start,
+
+    /// Stops the daemon py server
+    Stop,
+}
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
@@ -29,6 +48,11 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
         Commands::Health => {
             commands::check_health();
         }
+        Commands::Server(server) => match server.command {
+            Some(ServerCommands::Start) => commands::start_server(),
+            Some(ServerCommands::Stop) => commands::stop_server(),
+            _ => println!("Expected start or stop"),
+        },
     }
     Ok(())
 }
