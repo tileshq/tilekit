@@ -340,15 +340,17 @@ fn create_modelfile(commands: Vec<(&str, Output)>) -> Result<Modelfile, String> 
     for command in commands {
         let _ = match (command.0.to_lowercase().as_str(), command.1) {
             //TODO: Can add validations for path if its a gguf file later
-            ("from", Output::Single(from)) => modelfile.add_from(from),
+            ("from", Output::Single(from)) => modelfile.add_from(from.trim()),
             ("parameter", Output::Pair((param, argument))) => {
-                modelfile.add_parameter(param, argument)
+                modelfile.add_parameter(param, argument.trim())
             }
-            ("template", Output::Single(template)) => modelfile.add_template(template),
-            ("system", Output::Single(system)) => modelfile.add_system(system),
-            ("adapter", Output::Single(adapter)) => modelfile.add_adapter(adapter),
-            ("message", Output::Pair((role, message))) => modelfile.add_message(role, message),
-            ("license", Output::Single(license)) => modelfile.add_license(license),
+            ("template", Output::Single(template)) => modelfile.add_template(template.trim()),
+            ("system", Output::Single(system)) => modelfile.add_system(system.trim()),
+            ("adapter", Output::Single(adapter)) => modelfile.add_adapter(adapter.trim()),
+            ("message", Output::Pair((role, message))) => {
+                modelfile.add_message(role, message.trim())
+            }
+            ("license", Output::Single(license)) => modelfile.add_license(license.trim()),
             ("#", comment) => {
                 let comment_str = comment.to_string();
                 modelfile.add_comment(&comment_str)
@@ -545,5 +547,16 @@ mod tests {
     fn test_parse_bad_modelfile() {
         // modelfile has more than 2 FROM
         assert!(parse_from_file("fixtures/llama_bad.Modelfile").is_err())
+    }
+
+    #[test]
+    fn test_values_should_be_trimmed() -> Result<(), String> {
+        let modelfile_content = "
+            FROM llama3.2 
+            PARAMETER num_ctx 4096
+        ";
+        let modelfile = parse(modelfile_content)?;
+        assert_eq!(modelfile.from.unwrap(), String::from("llama3.2"));
+        Ok(())
     }
 }
