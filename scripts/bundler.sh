@@ -11,7 +11,7 @@ OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 OUT_NAME="${BINARY_NAME}-v${VERSION}-${ARCH}-${OS}"
 
-echo "Building ${BINARY_NAME} (${TARGET} mode)..."
+echo "🚀 Building ${BINARY_NAME} (${TARGET} mode)..."
 cargo build --${TARGET}
 
 mkdir -p "${DIST_DIR}/tmp"
@@ -21,9 +21,9 @@ cp -r "${SERVER_DIR}" "${DIST_DIR}/tmp/"
 rm -rf "${DIST_DIR}/tmp/server/__pycache__"
 rm -rf "${DIST_DIR}/tmp/server/.venv"
 
-echo "Creating ${OUT_NAME}.tar.gz..."
+echo "📦 Creating ${OUT_NAME}.tar.gz..."
 tar -czf "${DIST_DIR}/${OUT_NAME}.tar.gz" -C "${DIST_DIR}/tmp" .
 
 rm -rf "${DIST_DIR}/tmp"
 
-echo "Bundle created: ${DIST_DIR}/${OUT_NAME}.tar.gz"
+echo "✅ Bundle created: ${DIST_DIR}/${OUT_NAME}.tar.gz"

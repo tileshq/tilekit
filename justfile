@@ -19,6 +19,3 @@ bundle:
 
 install:
     ./scripts/install.sh
-
-iso:
-    ./scripts/make_iso.sh

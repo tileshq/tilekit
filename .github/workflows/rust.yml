@@ -16,12 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@1.90.0
+    - uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: 1.90.0
         components: rustfmt, clippy
-        
     - name: Cache cargo
       uses: actions/cache@v4
       with:
@@ -39,18 +37,3 @@ jobs:
 
     - name: Run check
       run: just check
-
-    - name: Install ISO tooling
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xorriso
-
-    - name: Build installer ISO
-      run: ./scripts/make_iso.sh
-
-    - name: Upload installer ISO artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tiles-installer-iso
-        path: dist/*.iso
-        if-no-files-found: error

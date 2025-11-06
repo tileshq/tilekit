@@ -270,10 +270,3 @@ fn get_data_dir() -> Result<PathBuf> {
         Ok(data_dir.join("tiles"))
     }
 }
-
-pub fn get_registry_dir() -> Result<PathBuf> {
-    let tiles_data_dir = get_data_dir()?;
-    let registry_dir = tiles_data_dir.join("registry");
-    fs::create_dir_all(&registry_dir).context("Failed to create tiles registry directory")?;
-    Ok(registry_dir)
-}
