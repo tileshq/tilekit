@@ -3,13 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="${ROOT_DIR}/dist"
-BINARY_NAME="tiles"
+BINARY_NAME="Tiles"
 VERSION=$(grep '^version' "${ROOT_DIR}/Cargo.toml" | head -1 | awk -F'"' '{print $2}')
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 BUNDLE_NAME="${BINARY_NAME}-v${VERSION}-${ARCH}-${OS}.tar.gz"
 BUNDLE_PATH="${DIST_DIR}/${BUNDLE_NAME}"
-ISO_NAME="${BINARY_NAME}-installer-v${VERSION}-${ARCH}-${OS}.iso"
+ISO_NAME="Tiles-installer-v${VERSION}-${ARCH}-${OS}.iso"
 ISO_PATH="${DIST_DIR}/${ISO_NAME}"
 
 log() { echo -e "\033[1;36m$*\033[0m"; }
@@ -29,10 +29,10 @@ trap 'rm -rf "${TMPDIR}"' EXIT
 INSTALLER_FILES_DIR="${TMPDIR}/.tiles-installer"
 mkdir -p "${INSTALLER_FILES_DIR}"
 
-# Copy ASCII art to root if it exists
+# Copy ASCII art to hidden installer folder if it exists
 if [[ -f "${ROOT_DIR}/ascii-art.txt" ]]; then
-  cp "${ROOT_DIR}/ascii-art.txt" "${TMPDIR}/ascii-art.txt"
-  log "Added ASCII art to ISO root"
+  cp "${ROOT_DIR}/ascii-art.txt" "${INSTALLER_FILES_DIR}/ascii-art.txt"
+  log "Added ASCII art to hidden installer folder"
 fi
 
 # Copy installer files to the subfolder
@@ -45,7 +45,7 @@ if [[ "${OS}" == "darwin" ]]; then
   log "Creating macOS auto-launch installer..."
   
   # Create the .command file with logging in the subfolder
-  cat > "${INSTALLER_FILES_DIR}/Install Tiles.command" << 'EOF'
+  cat > "${INSTALLER_FILES_DIR}/Tiles.command" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -98,11 +98,11 @@ else
   exit ${EXIT_CODE}
 fi
 EOF
-  chmod +x "${INSTALLER_FILES_DIR}/Install Tiles.command"
+  chmod +x "${INSTALLER_FILES_DIR}/Tiles.command"
   
   # Create AppleScript application bundle at the root level
   log "Creating AppleScript application bundle..."
-  APP_DIR="${TMPDIR}/Install Tiles.app"
+  APP_DIR="${TMPDIR}/Tiles.app"
   mkdir -p "${APP_DIR}/Contents/MacOS"
   mkdir -p "${APP_DIR}/Contents/Resources"
   
@@ -123,7 +123,7 @@ EOF
     <key>CFBundleIdentifier</key>
     <string>com.tiles.installer</string>
     <key>CFBundleName</key>
-    <string>Install Tiles</string>
+    <string>Tiles</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -141,38 +141,38 @@ EOF
 PLIST
   
   # Create the executable script that runs the installer automatically
-  # The app bundle will be in the same directory as Install Tiles.command
+  # The app bundle will be in the same directory as Tiles.command
   cat > "${APP_DIR}/Contents/MacOS/installer" << 'APPSCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 
 # Find the directory containing this app bundle (the mounted volume root)
-# App bundle structure: Install Tiles.app/Contents/MacOS/installer
+# App bundle structure: Tiles.app/Contents/MacOS/installer
 # So we go up 2 levels to get to the app bundle, then up 1 more to get to volume root
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # .../Install Tiles.app/Contents/MacOS
-APP_BUNDLE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"  # .../Install Tiles.app
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # .../Tiles.app/Contents/MacOS
+APP_BUNDLE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"  # .../Tiles.app
 VOLUME_DIR="$(dirname "${APP_BUNDLE_DIR}")"  # .../ (volume root)
-# Look for Install Tiles.command in the hidden installer subfolder
-COMMAND_FILE="${VOLUME_DIR}/.tiles-installer/Install Tiles.command"
+# Look for Tiles.command in the hidden installer subfolder
+COMMAND_FILE="${VOLUME_DIR}/.tiles-installer/Tiles.command"
 
 # Log directory for app launches
 LOG_DIR="${HOME}/Library/Logs/tiles"
 mkdir -p "${LOG_DIR}"
 APP_LOG="${LOG_DIR}/app-launch-$(date +%Y%m%d-%H%M%S).log"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Install Tiles.app launched" >> "${APP_LOG}"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Tiles.app launched" >> "${APP_LOG}"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Volume directory: ${VOLUME_DIR}" >> "${APP_LOG}"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Command file: ${COMMAND_FILE}" >> "${APP_LOG}"
 
 # If command file exists in the hidden installer folder, run it automatically
 if [[ -f "${COMMAND_FILE}" ]]; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Found Install Tiles.command, launching installer..." >> "${APP_LOG}"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Found Tiles.command, launching installer..." >> "${APP_LOG}"
   # Use AppleScript to open Terminal and run the installer automatically
   INSTALLER_DIR="${VOLUME_DIR}/.tiles-installer"
   osascript <<EOF
 tell application "Terminal"
   activate
-  do script "cd '${INSTALLER_DIR}' && './Install Tiles.command'"
+  do script "cd '${INSTALLER_DIR}' && './Tiles.command'"
 end tell
 EOF
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installer launched successfully" >> "${APP_LOG}"
@@ -181,23 +181,23 @@ else
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Command file not found, searching mounted volumes..." >> "${APP_LOG}"
   FOUND=0
   for vol in /Volumes/tiles-*; do
-    if [[ -d "$vol/.tiles-installer" ]] && [[ -f "$vol/.tiles-installer/Install Tiles.command" ]]; then
+    if [[ -d "$vol/.tiles-installer" ]] && [[ -f "$vol/.tiles-installer/Tiles.command" ]]; then
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] Found installer in ${vol}/.tiles-installer" >> "${APP_LOG}"
       osascript <<EOF
 tell application "Terminal"
   activate
-  do script "cd '${vol}/.tiles-installer' && './Install Tiles.command'"
+  do script "cd '${vol}/.tiles-installer' && './Tiles.command'"
 end tell
 EOF
       FOUND=1
       exit 0
-    elif [[ -f "$vol/Install Tiles.command" ]]; then
+    elif [[ -f "$vol/Tiles.command" ]]; then
       # Also check root level for backwards compatibility
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] Found installer in ${vol} (root level)" >> "${APP_LOG}"
       osascript <<EOF
 tell application "Terminal"
   activate
-  do script "cd '${vol}' && './Install Tiles.command'"
+  do script "cd '${vol}' && './Tiles.command'"
 end tell
 EOF
       FOUND=1
@@ -207,11 +207,11 @@ EOF
   
   # Error if not found
   if [[ ${FOUND} -eq 0 ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Install Tiles.command not found" >> "${APP_LOG}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Tiles.command not found" >> "${APP_LOG}"
     osascript <<EOF
 tell application "Terminal"
   activate
-  do script "echo 'Error: Install Tiles.command not found.'; echo 'Please navigate to the mounted volume and run Install Tiles.command manually.'; echo ''; echo 'Log file: ${APP_LOG}'"
+  do script "echo 'Error: Tiles.command not found.'; echo 'Please navigate to the mounted volume and run Tiles.command manually.'; echo ''; echo 'Log file: ${APP_LOG}'"
 end tell
 EOF
     exit 1
@@ -221,15 +221,15 @@ APPSCRIPT
   chmod +x "${APP_DIR}/Contents/MacOS/installer"
 fi
 
-# Create README at root level with ASCII art
-if [[ -f "${ROOT_DIR}/ascii-art.txt" ]]; then
+# Create README at root level with ASCII art (reading from hidden folder)
+if [[ -f "${INSTALLER_FILES_DIR}/ascii-art.txt" ]]; then
   cat > "${TMPDIR}/README.txt" << EOF
-$(cat "${ROOT_DIR}/ascii-art.txt")
+$(cat "${INSTALLER_FILES_DIR}/ascii-art.txt")
 
 Welcome to Tiles Installer!
 
 INSTALLATION:
-Double-click "Install Tiles.app" to start the installation.
+Double-click "Tiles.app" to start the installation.
 
 The installer will automatically:
 - Check for Python and uv dependencies
@@ -241,7 +241,7 @@ Installation logs are saved with timestamps for troubleshooting.
 
 For manual installation, open Terminal and run:
   cd /Volumes/tiles-${VERSION}/.tiles-installer
-  ./Install\ Tiles.command
+  ./Tiles.command
 EOF
   log "Created README.txt with ASCII art at root"
 else
@@ -250,7 +250,7 @@ else
 Welcome to Tiles Installer!
 
 INSTALLATION:
-Double-click "Install Tiles.app" to start the installation.
+Double-click "Tiles.app" to start the installation.
 
 The installer will automatically:
 - Check for Python and uv dependencies
@@ -262,7 +262,7 @@ Installation logs are saved with timestamps for troubleshooting.
 
 For manual installation, open Terminal and run:
   cd /Volumes/tiles-<version>/.tiles-installer
-  ./Install\ Tiles.command
+  ./Tiles.command
 README
 fi
 

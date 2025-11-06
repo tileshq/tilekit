@@ -14,8 +14,14 @@ fi
 
 # Display ASCII art if available
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ASCII_ART_FILE="${SCRIPT_DIR}/../ascii-art.txt"
+# Look in the current directory (hidden installer folder)
+ASCII_ART_FILE="${SCRIPT_DIR}/ascii-art.txt"
 if [[ ! -f "${ASCII_ART_FILE}" ]]; then
+  # Fallback to parent directory
+  ASCII_ART_FILE="${SCRIPT_DIR}/../ascii-art.txt"
+fi
+if [[ ! -f "${ASCII_ART_FILE}" ]]; then
+  # Fallback to volume root
   VOLUME_ROOT="$(dirname "${SCRIPT_DIR}")"
   ASCII_ART_FILE="${VOLUME_ROOT}/ascii-art.txt"
 fi
@@ -29,7 +35,7 @@ ENV="${TILES_INSTALL_ENV:-prod}"
 REPO="tilesprivacy/tilekit"
 VERSION="0.1.0"
 INSTALL_DIR="$HOME/.local/bin"
-SERVER_DIR="$HOME/.local/share/tiles/server"
+SERVER_DIR="$HOME/.tiles/server"
 TMPDIR="$(mktemp -d)"
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -150,8 +156,8 @@ print_section "Gathering Tiles Bundle"
 
 print_step "Looking for Tiles v${VERSION} (${ARCH}-${OS})..."
 
-LOCAL_BUNDLE="${SCRIPT_DIR}/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
-ROOT_BUNDLE="${SCRIPT_DIR}/../dist/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
+LOCAL_BUNDLE="${SCRIPT_DIR}/Tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
+ROOT_BUNDLE="${SCRIPT_DIR}/../dist/Tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
 
 if [[ -f "${LOCAL_BUNDLE}" ]]; then
   print_info "Found local bundle"
@@ -163,19 +169,19 @@ elif [[ -f "${ROOT_BUNDLE}" ]]; then
   print_success "Bundle located"
 elif [[ "${ENV}" == "prod" ]]; then
   print_info "Downloading from GitHub releases..."
-  TAR_URL="https://github.com/${REPO}/releases/download/${VERSION}/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
+  TAR_URL="https://github.com/${REPO}/releases/download/${VERSION}/Tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
   
-  if curl -fsSL -o "${TMPDIR}/tiles.tar.gz" "$TAR_URL"; then
+  if curl -fsSL -o "${TMPDIR}/Tiles.tar.gz" "$TAR_URL"; then
     print_success "Bundle downloaded"
   else
     err "Failed to download bundle from ${TAR_URL}"
   fi
 else
-  err "Could not locate bundle tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
+  err "Could not locate bundle Tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
 fi
 
 print_step "Extracting bundle..."
-tar -xzf "${TMPDIR}/tiles.tar.gz" -C "${TMPDIR}"
+tar -xzf "${TMPDIR}/Tiles.tar.gz" -C "${TMPDIR}"
 print_success "Bundle extracted"
 
 print_section_end
@@ -187,9 +193,9 @@ print_section_end
 print_section "Installing Components"
 
 print_step "Installing CLI binary..."
-print_info "Location: ${INSTALL_DIR}/tiles"
+print_info "Location: ${INSTALL_DIR}/Tiles"
 mkdir -p "${INSTALL_DIR}"
-install -m 755 "${TMPDIR}/tiles" "${INSTALL_DIR}/tiles"
+install -m 755 "${TMPDIR}/Tiles" "${INSTALL_DIR}/Tiles"
 print_success "CLI binary installed"
 
 print_step "Installing Python server..."
@@ -207,6 +213,21 @@ else
   err "Failed to set up Python environment"
 fi
 
+# Install Tiles Agent for macOS
+if [[ "${OS}" == "darwin" ]] && [[ -d "${TMPDIR}/Tiles Agent.app" ]]; then
+  print_step "Installing Tiles Agent..."
+  mkdir -p "${HOME}/Applications"
+  rm -rf "${HOME}/Applications/Tiles Agent.app"
+  cp -r "${TMPDIR}/Tiles Agent.app" "${HOME}/Applications/"
+  
+  # Install agent script
+  mkdir -p "${HOME}/.tiles"
+  cp "${TMPDIR}/tiles-agent.sh" "${HOME}/.tiles/tiles-agent.sh"
+  chmod +x "${HOME}/.tiles/tiles-agent.sh"
+  
+  print_success "Tiles Agent installed to ~/Applications"
+fi
+
 print_section_end
 
 # Cleanup
@@ -221,7 +242,7 @@ print_header "Installation Complete"
 print_success "Tiles v${VERSION} installed successfully!"
 echo ""
 
-wrap_text "The Tiles CLI has been installed to ${INSTALL_DIR}. Make sure this directory is in your PATH to use the 'tiles' command." "  "
+wrap_text "The Tiles CLI has been installed to ${INSTALL_DIR}. Make sure this directory is in your PATH to use the 'Tiles' command." "  "
 echo ""
 
 # Display PATH setup instructions if needed
@@ -240,13 +261,28 @@ fi
 print_section "Getting Started"
 
 export PATH="${INSTALL_DIR}:${PATH}"
-if command -v tiles >/dev/null 2>&1; then
-  tiles --help 2>/dev/null || "${INSTALL_DIR}/tiles" --help 2>/dev/null || true
+if command -v Tiles >/dev/null 2>&1; then
+  Tiles --help 2>/dev/null || "${INSTALL_DIR}/Tiles" --help 2>/dev/null || true
 else
-  "${INSTALL_DIR}/tiles" --help 2>/dev/null || true
+  "${INSTALL_DIR}/Tiles" --help 2>/dev/null || true
 fi
 
 print_section_end
 
-wrap_text "For more information, visit the documentation or run 'tiles --help' at any time." "  "
+wrap_text "For more information, visit the documentation or run 'Tiles --help' at any time." "  "
 echo ""
+
+# Show recommended tools
+print_section "Recommended Setup"
+echo ""
+wrap_text "For the best experience with Tiles, we recommend:" "  "
+echo ""
+echo -e "  \033[1;36m•\033[0m \033[1;37mTailscale\033[0m - Access your Tiles instance securely from anywhere"
+echo -e "    https://tailscale.com"
+echo ""
+echo -e "  \033[1;36m•\033[0m \033[1;37mAmphetamine\033[0m (macOS) - Keep your Mac awake when running models"
+echo -e "    https://amphetamine.en.softonic.com/mac"
+echo ""
+wrap_text "These tools ensure your models stay accessible and responsive 24/7." "  "
+echo ""
+print_section_end

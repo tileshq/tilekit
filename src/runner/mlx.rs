@@ -294,39 +294,18 @@ fn get_server_dir() -> Result<PathBuf> {
         Ok(base_dir.join("server"))
     } else {
         let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-        let data_dir = match env::var("XDG_DATA_HOME") {
-            Ok(val) => PathBuf::from(val),
-            Err(_err) => home_dir.join(".local/share"),
-        };
-        Ok(data_dir.join("tiles/server"))
-    }
-}
-pub fn get_config_dir() -> Result<PathBuf> {
-    if cfg!(debug_assertions) {
-        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
-        Ok(base_dir.join(".tiles_dev/tiles"))
-    } else {
-        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-        let config_dir = match env::var("XDG_CONFIG_HOME") {
-            Ok(val) => PathBuf::from(val),
-            Err(_err) => home_dir.join(".config"),
-        };
-        Ok(config_dir.join("tiles"))
+        Ok(home_dir.join(".tiles/server"))
     }
 }
 
+pub fn get_config_dir() -> Result<PathBuf> {
+    let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+    Ok(home_dir.join(".tiles"))
+}
+
 fn get_data_dir() -> Result<PathBuf> {
-    if cfg!(debug_assertions) {
-        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
-        Ok(base_dir.join(".tiles_dev/tiles"))
-    } else {
-        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-        let data_dir = match env::var("XDG_DATA_HOME") {
-            Ok(val) => PathBuf::from(val),
-            Err(_err) => home_dir.join(".local/share"),
-        };
-        Ok(data_dir.join("tiles"))
-    }
+    let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+    Ok(home_dir.join(".tiles"))
 }
 
 pub fn get_registry_dir() -> Result<PathBuf> {
@@ -334,6 +313,58 @@ pub fn get_registry_dir() -> Result<PathBuf> {
     let registry_dir = tiles_data_dir.join("registry");
     fs::create_dir_all(&registry_dir).context("Failed to create tiles registry directory")?;
     Ok(registry_dir)
+}
+
+// macOS Agent management functions
+fn start_agent() -> Result<()> {
+    let config_dir = get_config_dir()?;
+    let agent_pid_file = config_dir.join("agent.pid");
+    
+    // Check if agent is already running
+    if agent_pid_file.exists() {
+        if let Ok(pid_str) = fs::read_to_string(&agent_pid_file) {
+            if let Ok(pid) = pid_str.trim().parse::<i32>() {
+                // Check if process is still running
+                if Command::new("kill").arg("-0").arg(pid.to_string()).status().is_ok() {
+                    return Ok(()); // Agent already running
+                }
+            }
+        }
+    }
+    
+    // Launch Tiles Agent.app
+    let home_dir = env::home_dir().context("Failed to get home directory")?;
+    let agent_app = home_dir.join("Applications/Tiles Agent.app");
+    
+    if agent_app.exists() {
+        Command::new("open")
+            .arg("-a")
+            .arg(&agent_app)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("Failed to launch Tiles Agent")?;
+    }
+    
+    Ok(())
+}
+
+fn stop_agent() -> Result<()> {
+    let config_dir = get_config_dir()?;
+    let agent_pid_file = config_dir.join("agent.pid");
+    
+    if !agent_pid_file.exists() {
+        return Ok(());
+    }
+    
+    if let Ok(pid_str) = fs::read_to_string(&agent_pid_file) {
+        if let Ok(pid) = pid_str.trim().parse::<i32>() {
+            let _ = Command::new("kill").arg(pid.to_string()).status();
+        }
+    }
+    
+    let _ = fs::remove_file(agent_pid_file);
+    Ok(())
 }
 
 // Background model management functions
@@ -409,6 +440,11 @@ pub async fn start_model_background(model_name: &str, modelfile: Modelfile) -> R
     println!("  Use 'tiles ls' to see running models");
     println!("  Use 'tiles stop {}' to stop this model", model_name);
     
+    // Start the agent to keep dock icon alive (macOS only, non-debug builds)
+    if cfg!(target_os = "macos") && !cfg!(debug_assertions) {
+        let _ = start_agent();
+    }
+    
     Ok(())
 }
 
@@ -430,10 +466,15 @@ pub async fn stop_model(model_name: &str) -> Result<(), String> {
     state.save(&state_file)
         .map_err(|e| format!("Failed to save model state: {}", e))?;
     
-    // If no models are running, optionally stop the server
+    // If no models are running, stop the server and agent
     if state.is_empty() {
         println!("  No models running, stopping server...");
         let _ = stop_server_daemon();
+        
+        // Stop the agent (macOS only, non-debug builds)
+        if cfg!(target_os = "macos") && !cfg!(debug_assertions) {
+            let _ = stop_agent();
+        }
     }
     
     Ok(())

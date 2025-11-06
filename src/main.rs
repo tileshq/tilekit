@@ -3,8 +3,18 @@ use std::error::Error;
 use clap::{Args, Parser, Subcommand};
 mod commands;
 #[derive(Debug, Parser)]
-#[command(name = "tiles")]
-#[command(version, about = "Private, on-device AI memory that personalizes the agents you use, on your terms. Works with Obsidian.", long_about = None)]
+#[command(name = "Tiles")]
+#[command(version, about = "Private, on-device AI memory that personalizes the agents you use, on your terms. Works with Obsidian.")]
+#[command(long_about = "Tiles - Private AI Memory\n\n\
+    Models run in the background and persist after the CLI exits.\n\n\
+    USAGE EXAMPLES:\n  \
+      Tiles run memgpt       Start the memgpt model\n  \
+      Tiles ls               List all running models\n  \
+      Tiles stop memgpt      Stop a specific model\n\n\
+    RECOMMENDED SETUP:\n  \
+      • Tailscale (https://tailscale.com) - Access Tiles from anywhere\n  \
+      • Amphetamine (macOS) - Keep your Mac awake for 24/7 availability\n\n\
+    For more info: https://tiles.run")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
