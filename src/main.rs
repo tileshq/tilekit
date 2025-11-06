@@ -13,7 +13,8 @@ mod commands;
       Tiles stop memgpt      Stop a specific model\n\n\
     RECOMMENDED SETUP:\n  \
       • Tailscale (https://tailscale.com) - Access Tiles from anywhere\n  \
-      • Amphetamine (macOS) - Keep your Mac awake for 24/7 availability\n\n\
+      • Amphetamine (macOS) - Keep your Mac awake for 24/7 availability\n  \
+      • rsync (https://rsync.samba.org) - Sync memory and data across devices\n\n\
     For more info: https://tiles.run")]
 struct Cli {
     #[command(subcommand)]

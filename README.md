@@ -31,8 +31,9 @@ Tiles --help
 
 - **[Tailscale](https://tailscale.com)** - Access your Tiles instance securely from anywhere, on any device
 - **[Amphetamine](https://amphetamine.en.softonic.com/mac)** (macOS) - Keep your Mac awake when running models
+- **[rsync](https://rsync.samba.org/)** - Sync your memory and data across devices
 
-These tools ensure your models stay accessible and responsive 24/7.
+These tools ensure your models stay accessible, responsive, and synced 24/7.
 
 ## Dev setup
 
