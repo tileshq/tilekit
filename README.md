@@ -15,6 +15,71 @@ Modelfile-based SDK that lets developers to lets developers customize local mode
 - Go to root and run `just serve` in another terminal to run the server
 - Run the rust cli using cargo as usual
 
+### Registry Structure
+
+Models are organized in the `registry/` folder. Each model has its own folder with a `Modelfile` inside:
+
+```
+registry/
+├── memgpt/
+│   └── Modelfile
+├── another-model/
+│   └── Modelfile
+└── ...
+```
+
+To run a model:
+```bash
+cargo run run memgpt  # Runs the model defined in registry/memgpt/Modelfile
+```
+
+The folder name becomes the model name that you use with the CLI.
+
+### Running Models
+
+Models run in the background and persist after the CLI exits:
+
+```bash
+# Start a model (runs in background)
+cargo run run memgpt         # Dev
+tiles run memgpt            # Production
+
+# List running models
+cargo run ls                 # Dev
+tiles ls                    # Production
+
+# Stop a specific model
+cargo run stop memgpt        # Dev
+tiles stop memgpt           # Production
+```
+
+When you stop the last running model, the server automatically stops as well.
+
+### Server Management
+
+**The server starts automatically** when you run a model and stops when no models are running.
+
+**Manual server control (if needed):**
+```bash
+# Start server manually
+cargo run start              # Dev
+tiles start                 # Production
+
+# Stop server manually (only if no models running)
+cargo run stop --server      # Dev
+tiles stop --server         # Production
+```
+
+**Development (debug) builds:**
+- Server starts automatically on first model run
+- Models run in background and persist after CLI exits
+- Use `tiles ls` to see running models
+- Use `tiles stop <model>` to stop individual models
+
+**Production (release) builds:**
+- Same behavior as dev builds
+- Server auto-starts and auto-stops based on running models
+
 ### Packaging installers
 
 - `just bundle` creates a tarball that includes the CLI binary and Python server.

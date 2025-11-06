@@ -12,17 +12,38 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Runs a model by name (e.g., 'memgpt') or by Modelfile path
+    /// Runs a model by name (e.g., 'memgpt')
+    ///
+    /// The model name corresponds to a folder in the registry that contains a Modelfile.
+    ///
+    /// Example:
+    ///   tiles run memgpt    # Runs the model from registry/memgpt/Modelfile
+    Run { model: String },
+
+    /// Lists all running models
+    Ls,
+
+    /// Stops a running model or the server
     ///
     /// Examples:
-    ///   tiles run memgpt                    # Runs registry/memgpt/Modelfile
-    ///   tiles run ./path/to/my.modelfile    # Runs specific file
-    Run { modelfile_path: String },
+    ///   tiles stop memgpt     # Stops the memgpt model
+    ///   tiles stop --server   # Stops the server (if no models are running)
+    Stop {
+        /// Model name to stop (if not provided, stops the server)
+        model: Option<String>,
+        /// Stop the server daemon
+        #[arg(long)]
+        server: bool,
+    },
+
+    /// Starts the server daemon
+    Start,
 
     /// Checks the status of dependencies
     Health,
 
-    /// start or stop the daemon server
+    /// Manage the daemon server (deprecated: use 'start' or 'stop' instead)
+    #[command(hide = true)]
     Server(ServerArgs),
 }
 
@@ -46,8 +67,24 @@ enum ServerCommands {
 pub async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Run { modelfile_path } => {
-            commands::run(modelfile_path.as_str()).await;
+        Commands::Run { model } => {
+            commands::run(model.as_str()).await;
+        }
+        Commands::Ls => {
+            commands::list_models();
+        }
+        Commands::Stop { model, server } => {
+            if server {
+                commands::stop_server();
+            } else if let Some(model_name) = model {
+                commands::stop_model(&model_name).await;
+            } else {
+                eprintln!("Please specify a model name or use --server flag");
+                eprintln!("Usage: tiles stop <model-name> or tiles stop --server");
+            }
+        }
+        Commands::Start => {
+            commands::start_server();
         }
         Commands::Health => {
             commands::check_health();

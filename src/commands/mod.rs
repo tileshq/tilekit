@@ -1,6 +1,5 @@
 // Module that handles CLI commands
 
-use std::path::Path;
 use tiles::{
     core::{
         health,
@@ -9,55 +8,50 @@ use tiles::{
     runner::mlx,
 };
 
-pub async fn run(modelfile_path: &str) {
-    // Resolve the modelfile path - check if it's a model name or file path
-    let resolved_path = match resolve_modelfile_path(modelfile_path) {
+pub async fn run(model_name: &str) {
+    // Resolve the model name to a Modelfile path in the registry
+    let modelfile_path = match resolve_model_to_modelfile(model_name) {
         Ok(path) => path,
         Err(err) => {
-            println!("Error resolving modelfile: {}", err);
+            eprintln!("{}", err);
             return;
         }
     };
 
-    match modelfile::parse_from_file(&resolved_path) {
+    match modelfile::parse_from_file(&modelfile_path) {
         Ok(modelfile) => {
-            mlx::run(modelfile).await;
+            // Start the model in background
+            if let Err(err) = mlx::start_model_background(model_name, modelfile).await {
+                eprintln!("{}", err);
+            }
         }
-        Err(err) => println!("{}", err),
+        Err(err) => eprintln!("Error parsing Modelfile: {}", err),
     }
 }
 
-fn resolve_modelfile_path(input: &str) -> Result<String, String> {
-    let path = Path::new(input);
-
-    // If the input is a file path that exists, canonicalize it to get absolute path
-    // This prevents path traversal attacks and ensures consistent path handling
-    if path.exists() {
-        return path
-            .canonicalize()
-            .map(|p| p.to_string_lossy().to_string())
-            .map_err(|e| format!("Failed to canonicalize path '{}': {}", input, e));
-    }
-
-    // Otherwise, treat it as a model name and look for it in the registry
+fn resolve_model_to_modelfile(model_name: &str) -> Result<String, String> {
+    // Look for the model in the registry
     match mlx::get_registry_dir() {
         Ok(registry_dir) => {
-            let modelfile_path = registry_dir.join(input).join("Modelfile");
+            let modelfile_path = registry_dir.join(model_name).join("Modelfile");
             if modelfile_path.exists() {
                 // Registry paths are already absolute, but canonicalize for consistency
                 modelfile_path
                     .canonicalize()
                     .map(|p| p.to_string_lossy().to_string())
-                    .map_err(|e| format!("Failed to canonicalize registry path: {}", e))
+                    .map_err(|e| format!("Failed to access Modelfile: {}", e))
             } else {
                 Err(format!(
-                    "Modelfile not found for '{}'. Expected at: {}\nTry: tiles run <model-name> or tiles run <path-to-modelfile>",
-                    input,
-                    modelfile_path.display()
+                    "❌ Model '{}' not found in registry.\n\
+                     💡 Expected Modelfile at: {}\n\
+                     📝 Tip: Create a folder named '{}' in the registry with a Modelfile inside.",
+                    model_name,
+                    modelfile_path.display(),
+                    model_name
                 ))
             }
         }
-        Err(err) => Err(format!("Failed to get registry directory: {}", err)),
+        Err(err) => Err(format!("Failed to access registry directory: {}", err)),
     }
 }
 
@@ -71,4 +65,16 @@ pub fn start_server() {
 
 pub fn stop_server() {
     let _ = mlx::stop_server_daemon();
+}
+
+pub fn list_models() {
+    if let Err(err) = mlx::list_running_models() {
+        eprintln!("Error listing models: {}", err);
+    }
+}
+
+pub async fn stop_model(model_name: &str) {
+    if let Err(err) = mlx::stop_model(model_name).await {
+        eprintln!("{}", err);
+    }
 }
