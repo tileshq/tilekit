@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV="prod" # prod is another env, try taking it from github env
-REPO="tilesprivacy/tilekit" 
-# VERSION="${TILES_VERSION:-latest}"       
-VERSION="0.1.0"       
+ENV="${TILES_INSTALL_ENV:-prod}" # prod pulls from GitHub releases, anything else prefers local assets
+REPO="tilesprivacy/tilekit"
+# VERSION="${TILES_VERSION:-latest}"
+VERSION="0.1.0"
 INSTALL_DIR="$HOME/.local/bin"           # CLI install location
 SERVER_DIR="$HOME/.local/share/tiles/server"         # Python server folder
 TMPDIR="$(mktemp -d)"
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 
 log() { echo -e "\033[1;36m$*\033[0m"; }
@@ -36,15 +37,22 @@ if ! command -v uv >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
 
-log "⬇️  Downloading Tiles (${VERSION}) for ${ARCH}-${OS}..."
+log "⬇️  Gathering Tiles (${VERSION}) for ${ARCH}-${OS}..."
 
+LOCAL_BUNDLE="${SCRIPT_DIR}/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
+ROOT_BUNDLE="${SCRIPT_DIR}/../dist/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
 
-if [[ "$ENV" == "prod" ]]; then
+if [[ -f "${LOCAL_BUNDLE}" ]]; then
+  log "📁 Using bundle next to the installer script."
+  cp "${LOCAL_BUNDLE}" "${TMPDIR}/tiles.tar.gz"
+elif [[ -f "${ROOT_BUNDLE}" ]]; then
+  log "📁 Using bundle from repository dist folder."
+  cp "${ROOT_BUNDLE}" "${TMPDIR}/tiles.tar.gz"
+elif [[ "${ENV}" == "prod" ]]; then
   TAR_URL="https://github.com/${REPO}/releases/download/${VERSION}/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz"
   curl -fsSL -o "${TMPDIR}/tiles.tar.gz" "$TAR_URL"
 else
-  # Installer suppose to ran from tilekit root folder after running the bundler
-  mv "dist/tiles-v${VERSION}-${ARCH}-${OS}.tar.gz" "${TMPDIR}/tiles.tar.gz" 
+  err "Could not locate bundle tiles-v${VERSION}-${ARCH}-${OS}.tar.gz."
 fi
 
 echo "⬇️ Installing tiles..."

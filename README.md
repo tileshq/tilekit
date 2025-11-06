@@ -15,6 +15,11 @@ Modelfile-based SDK that lets developers to lets developers customize local mode
 - Go to root and run `just serve` in another terminal to run the server
 - Run the rust cli using cargo as usual
 
+### Packaging installers
+
+- `just bundle` creates a tarball that includes the CLI binary and Python server.
+- `just iso` wraps the bundle and installer script into an ISO that can be flashed with tools like Balena Etcher.
+
 ## License
 
 This project is dual-licensed under MIT and Apache 2.0 terms:
