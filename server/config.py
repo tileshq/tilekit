@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 PORT = 6969
-MODEL_ID = "driaforall/mem-agent"
+MODEL_ID = "driaforall/mem-agent-mlx-4bit"
 
 prompt_path = Path(__file__).parent / "system_prompt.txt"
 MEMORY_PATH = os.path.expanduser("~") + "/tiles_memory"
