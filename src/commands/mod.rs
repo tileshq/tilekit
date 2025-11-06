@@ -1,5 +1,6 @@
 // Module that handles CLI commands
 
+use std::path::Path;
 use tiles::{
     core::{
         health,
@@ -7,7 +8,6 @@ use tiles::{
     },
     runner::mlx,
 };
-use std::path::Path;
 
 pub async fn run(modelfile_path: &str) {
     // Resolve the modelfile path - check if it's a model name or file path
@@ -29,7 +29,7 @@ pub async fn run(modelfile_path: &str) {
 
 fn resolve_modelfile_path(input: &str) -> Result<String, String> {
     let path = Path::new(input);
-    
+
     // If the input is a file path that exists, canonicalize it to get absolute path
     // This prevents path traversal attacks and ensures consistent path handling
     if path.exists() {

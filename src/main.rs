@@ -13,7 +13,7 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Runs a model by name (e.g., 'memgpt') or by Modelfile path
-    /// 
+    ///
     /// Examples:
     ///   tiles run memgpt                    # Runs registry/memgpt/Modelfile
     ///   tiles run ./path/to/my.modelfile    # Runs specific file
