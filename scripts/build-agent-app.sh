@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build Tiles Agent.app bundle
+# Build Tiles.app bundle with agent functionality
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "${SCRIPT_DIR}")"
 DIST_DIR="${ROOT_DIR}/dist"
-APP_NAME="Tiles Agent"
+APP_NAME="Tiles"
 APP_DIR="${DIST_DIR}/${APP_NAME}.app"
 
 echo "Building ${APP_NAME}.app..."
@@ -27,11 +27,11 @@ cat > "${APP_DIR}/Contents/Info.plist" << 'PLIST'
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>Tiles Agent</string>
+    <string>Tiles</string>
     <key>CFBundleIdentifier</key>
-    <string>com.tiles.agent</string>
+    <string>com.tiles.app</string>
     <key>CFBundleName</key>
-    <string>Tiles Agent</string>
+    <string>Tiles</string>
     <key>CFBundleDisplayName</key>
     <string>Tiles</string>
     <key>CFBundlePackageType</key>
@@ -55,7 +55,7 @@ cat > "${APP_DIR}/Contents/Info.plist" << 'PLIST'
 PLIST
 
 # Create the executable that runs the agent script
-cat > "${APP_DIR}/Contents/MacOS/Tiles Agent" << 'AGENT'
+cat > "${APP_DIR}/Contents/MacOS/Tiles" << 'AGENT'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -67,11 +67,11 @@ AGENT_SCRIPT="${TILES_DIR}/tiles-agent.sh"
 LOG_FILE="${TILES_DIR}/agent.log"
 mkdir -p "${TILES_DIR}"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Tiles Agent.app launched" >> "${LOG_FILE}"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Tiles.app launched" >> "${LOG_FILE}"
 
 # Check if agent script exists
 if [[ ! -f "${AGENT_SCRIPT}" ]]; then
-    osascript -e 'display alert "Tiles Agent Error" message "Agent script not found. Please reinstall Tiles." as critical'
+    osascript -e 'display alert "Tiles Error" message "Agent script not found. Please reinstall Tiles." as critical'
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Agent script not found at ${AGENT_SCRIPT}" >> "${LOG_FILE}"
     exit 1
 fi
@@ -81,7 +81,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting agent script" >> "${LOG_FILE}"
 bash "${AGENT_SCRIPT}"
 AGENT
 
-chmod +x "${APP_DIR}/Contents/MacOS/Tiles Agent"
+chmod +x "${APP_DIR}/Contents/MacOS/Tiles"
 
 # Copy the agent script to dist for installation
 cp "${SCRIPT_DIR}/tiles-agent.sh" "${DIST_DIR}/tiles-agent.sh"

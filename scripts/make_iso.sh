@@ -40,6 +40,18 @@ cp "${ROOT_DIR}/scripts/install.sh" "${INSTALLER_FILES_DIR}/install.sh"
 chmod +x "${INSTALLER_FILES_DIR}/install.sh"
 cp "${BUNDLE_PATH}" "${INSTALLER_FILES_DIR}/${BUNDLE_NAME}"
 
+# Extract and add Tiles.app to the ISO root
+log "Extracting Tiles.app from bundle..."
+EXTRACT_DIR=$(mktemp -d)
+tar -xzf "${BUNDLE_PATH}" -C "${EXTRACT_DIR}"
+if [[ -d "${EXTRACT_DIR}/Tiles.app" ]]; then
+  cp -r "${EXTRACT_DIR}/Tiles.app" "${TMPDIR}/Tiles.app"
+  log "Added Tiles.app to ISO root"
+else
+  log "Warning: Tiles.app not found in bundle"
+fi
+rm -rf "${EXTRACT_DIR}"
+
 # For macOS builds, create a .command file and an .app bundle that auto-launches
 if [[ "${OS}" == "darwin" ]]; then
   log "Creating macOS auto-launch installer..."

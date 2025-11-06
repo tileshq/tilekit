@@ -14,9 +14,9 @@ OUT_NAME="${BINARY_NAME}-v${VERSION}-${ARCH}-${OS}"
 echo "Building ${BINARY_NAME} (${TARGET} mode)..."
 cargo build --${TARGET}
 
-# Build Tiles Agent.app for macOS
+# Build Tiles.app for macOS
 if [[ "${OS}" == "darwin" ]]; then
-    echo "Building Tiles Agent.app..."
+    echo "Building Tiles.app..."
     bash scripts/build-agent-app.sh
 fi
 
@@ -24,9 +24,9 @@ mkdir -p "${DIST_DIR}/tmp"
 cp "target/${TARGET}/${BINARY_NAME}" "${DIST_DIR}/tmp/"
 cp -r "${SERVER_DIR}" "${DIST_DIR}/tmp/"
 
-# Add agent files for macOS
-if [[ "${OS}" == "darwin" ]] && [[ -d "${DIST_DIR}/Tiles Agent.app" ]]; then
-    cp -r "${DIST_DIR}/Tiles Agent.app" "${DIST_DIR}/tmp/"
+# Add Tiles.app for macOS
+if [[ "${OS}" == "darwin" ]] && [[ -d "${DIST_DIR}/Tiles.app" ]]; then
+    cp -r "${DIST_DIR}/Tiles.app" "${DIST_DIR}/tmp/"
     cp "${DIST_DIR}/tiles-agent.sh" "${DIST_DIR}/tmp/"
 fi
 
