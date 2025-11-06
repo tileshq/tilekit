@@ -37,3 +37,18 @@ jobs:
 
     - name: Run check
       run: just check
+
+    - name: Install ISO tooling
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xorriso
+
+    - name: Build installer ISO
+      run: ./scripts/make_iso.sh
+
+    - name: Upload installer ISO artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tiles-installer-iso
+        path: dist/*.iso
+        if-no-files-found: error

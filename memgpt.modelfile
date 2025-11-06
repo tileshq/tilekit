@@ -1,1 +1,1 @@
-FROM driaforall/mem-agent
+FROM driaforall/mem-agent-mlx-4bit         

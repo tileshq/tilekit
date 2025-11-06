@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 mod commands;
 #[derive(Debug, Parser)]
 #[command(name = "tiles")]
-#[command(version, about = "Run, fine-tune models locally with Modelfile", long_about = None)]
+#[command(version, about = "Private, on-device AI memory that personalizes the agents you use, on your terms. Works with Obsidian.", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
