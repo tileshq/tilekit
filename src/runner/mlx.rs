@@ -11,8 +11,12 @@ use crate::core::modelfile::Modelfile;
 
 pub async fn run(modelfile: Modelfile) {
     let model = modelfile.from.as_ref().unwrap();
+    println!("✓ Found model: {}", model);
     if model.starts_with("driaforall/mem-agent") {
-        let _res = run_model_with_server(modelfile).await;
+        if let Err(err) = run_model_with_server(modelfile).await {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        }
     } else {
         run_model_by_sub_process(modelfile);
     }
@@ -119,15 +123,44 @@ pub fn stop_server_daemon() -> Result<()> {
     println!("Server stopped.");
     Ok(())
 }
-async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
+async fn run_model_with_server(modelfile: Modelfile) -> Result<(), String> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
+    
+    // In production builds, automatically start the server if it's not running
+    if !cfg!(debug_assertions) {
+        if !is_server_running().await {
+            println!("🚀 Starting server on port 6969...");
+            start_server_daemon()
+                .map_err(|e| format!("Failed to start server: {}", e))?;
+            
+            // Wait for server to initialize with retries
+            let mut attempts = 0;
+            let max_attempts = 15; // 15 seconds total
+            while attempts < max_attempts {
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                if is_server_running().await {
+                    println!("✓ Server started successfully");
+                    break;
+                }
+                attempts += 1;
+            }
+            
+            if attempts >= max_attempts {
+                return Err(String::from(
+                    "❌ Server failed to start within 15 seconds. Please check logs or try: tiles server start"
+                ));
+            }
+        } else {
+            println!("✓ Connected to server on port 6969");
+        }
+    }
+    
     // loading the model from mem-agent via daemon server
     let memory_path = get_memory_path()
-        .context("Retrieving memory_path failed")
-        .unwrap();
+        .map_err(|e| format!("Failed to retrieve memory path: {}", e))?;
     let modelname = modelfile.from.as_ref().unwrap();
-    load_model(modelname, &memory_path).await.unwrap();
+    load_model(modelname, &memory_path).await?;
     println!("Running in interactive mode");
     loop {
         print!(">> ");
@@ -152,12 +185,26 @@ async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
     Ok(())
 }
 
-// async fn ping() -> reqwest::Result<()> {
-//     let client = Client::new();
-//     let res = client.get("http://127.0.0.1:6969/ping").send().await?;
-//     println!("{}", res.text().await?);
-//     Ok(())
-// }
+async fn is_server_running() -> bool {
+    // First check if PID file exists
+    if let Ok(config_dir) = get_config_dir() {
+        let pid_file = config_dir.join("server.pid");
+        if !pid_file.exists() {
+            return false;
+        }
+    }
+    
+    // Try to ping the server to confirm it's actually running
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(1))
+        .build()
+        .unwrap();
+    
+    match client.get("http://127.0.0.1:6969/ping").send().await {
+        Ok(res) => res.status().is_success(),
+        Err(_) => false,
+    }
+}
 
 async fn load_model(model_name: &str, memory_path: &str) -> Result<(), String> {
     let client = Client::new();
@@ -170,7 +217,18 @@ async fn load_model(model_name: &str, memory_path: &str) -> Result<(), String> {
         .json(&body)
         .send()
         .await
-        .unwrap();
+        .map_err(|e| {
+            if e.is_connect() {
+                format!(
+                    "❌ Error: Could not connect to the server.\n\
+                     💡 Hint: Start the server first by running: tiles server start\n\
+                     📝 Note: The server is required for mem-agent models.\n\
+                     Error details: {}", e
+                )
+            } else {
+                format!("Request failed: {}", e)
+            }
+        })?;
     if res.status() == 200 {
         Ok(())
     } else {
@@ -236,37 +294,227 @@ fn get_server_dir() -> Result<PathBuf> {
         Ok(base_dir.join("server"))
     } else {
         let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-        let data_dir = match env::var("XDG_DATA_HOME") {
-            Ok(val) => PathBuf::from(val),
-            Err(_err) => home_dir.join(".local/share"),
-        };
-        Ok(data_dir.join("tiles/server"))
-    }
-}
-fn get_config_dir() -> Result<PathBuf> {
-    if cfg!(debug_assertions) {
-        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
-        Ok(base_dir.join(".tiles_dev/tiles"))
-    } else {
-        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-        let config_dir = match env::var("XDG_CONFIG_HOME") {
-            Ok(val) => PathBuf::from(val),
-            Err(_err) => home_dir.join(".config"),
-        };
-        Ok(config_dir.join("tiles"))
+        Ok(home_dir.join(".tiles/server"))
     }
 }
 
+pub fn get_config_dir() -> Result<PathBuf> {
+    let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+    Ok(home_dir.join(".tiles"))
+}
+
 fn get_data_dir() -> Result<PathBuf> {
-    if cfg!(debug_assertions) {
-        let base_dir = env::current_dir().context("Failed to fetch CURRENT_DIR")?;
-        Ok(base_dir.join(".tiles_dev/tiles"))
-    } else {
-        let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
-        let data_dir = match env::var("XDG_DATA_HOME") {
-            Ok(val) => PathBuf::from(val),
-            Err(_err) => home_dir.join(".local/share"),
-        };
-        Ok(data_dir.join("tiles"))
+    let home_dir = env::home_dir().context("Failed to fetch $HOME")?;
+    Ok(home_dir.join(".tiles"))
+}
+
+pub fn get_registry_dir() -> Result<PathBuf> {
+    let tiles_data_dir = get_data_dir()?;
+    let registry_dir = tiles_data_dir.join("registry");
+    fs::create_dir_all(&registry_dir).context("Failed to create tiles registry directory")?;
+    Ok(registry_dir)
+}
+
+// macOS Agent management functions
+fn start_agent() -> Result<()> {
+    let config_dir = get_config_dir()?;
+    let agent_pid_file = config_dir.join("agent.pid");
+    
+    // Check if agent is already running
+    if agent_pid_file.exists() {
+        if let Ok(pid_str) = fs::read_to_string(&agent_pid_file) {
+            if let Ok(pid) = pid_str.trim().parse::<i32>() {
+                // Check if process is still running
+                if Command::new("kill").arg("-0").arg(pid.to_string()).status().is_ok() {
+                    return Ok(()); // Agent already running
+                }
+            }
+        }
     }
+    
+    // Launch Tiles Agent.app
+    let home_dir = env::home_dir().context("Failed to get home directory")?;
+    let agent_app = home_dir.join("Applications/Tiles Agent.app");
+    
+    if agent_app.exists() {
+        Command::new("open")
+            .arg("-a")
+            .arg(&agent_app)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("Failed to launch Tiles Agent")?;
+    }
+    
+    Ok(())
+}
+
+fn stop_agent() -> Result<()> {
+    let config_dir = get_config_dir()?;
+    let agent_pid_file = config_dir.join("agent.pid");
+    
+    if !agent_pid_file.exists() {
+        return Ok(());
+    }
+    
+    if let Ok(pid_str) = fs::read_to_string(&agent_pid_file) {
+        if let Ok(pid) = pid_str.trim().parse::<i32>() {
+            let _ = Command::new("kill").arg(pid.to_string()).status();
+        }
+    }
+    
+    let _ = fs::remove_file(agent_pid_file);
+    Ok(())
+}
+
+// Background model management functions
+pub async fn start_model_background(model_name: &str, modelfile: Modelfile) -> Result<(), String> {
+    use super::model_state::{get_state_file, ModelState};
+    
+    let state_file = get_state_file().map_err(|e| format!("Failed to get state file: {}", e))?;
+    let mut state = ModelState::load(&state_file)
+        .map_err(|e| format!("Failed to load model state: {}", e))?;
+    
+    // Check if model is already running
+    state.cleanup_stale();
+    if let Some(existing) = state.get_model(model_name) {
+        return Err(format!(
+            "Model '{}' is already running (PID: {})\nUse 'tiles stop {}' to stop it first.",
+            model_name, existing.pid, model_name
+        ));
+    }
+    
+    let model_id = modelfile.from.as_ref().unwrap().clone();
+    
+    // Ensure server is running
+    if !is_server_running().await {
+        println!("🚀 Starting server on port 6969...");
+        start_server_daemon()
+            .map_err(|e| format!("Failed to start server: {}", e))?;
+        
+        // Wait for server to initialize
+        let mut attempts = 0;
+        let max_attempts = 15;
+        while attempts < max_attempts {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            if is_server_running().await {
+                println!("✓ Server started successfully");
+                break;
+            }
+            attempts += 1;
+        }
+        
+        if attempts >= max_attempts {
+            return Err(String::from(
+                "❌ Server failed to start within 15 seconds."
+            ));
+        }
+    } else {
+        println!("✓ Connected to server on port 6969");
+    }
+    
+    // Load the model
+    let memory_path = get_memory_path()
+        .map_err(|e| format!("Failed to retrieve memory path: {}", e))?;
+    load_model(&model_id, &memory_path).await?;
+    
+    // Get server PID to track the model
+    let config_dir = get_config_dir()
+        .map_err(|e| format!("Failed to get config directory: {}", e))?;
+    let pid_file = config_dir.join("server.pid");
+    let server_pid = if pid_file.exists() {
+        fs::read_to_string(&pid_file)
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    
+    // Add to state (using server PID since model runs in server)
+    state.add_model(model_name.to_string(), model_id.clone(), server_pid);
+    state.save(&state_file)
+        .map_err(|e| format!("Failed to save model state: {}", e))?;
+    
+    println!("✓ Model '{}' ({}) loaded and ready", model_name, model_id);
+    println!("  Use 'tiles ls' to see running models");
+    println!("  Use 'tiles stop {}' to stop this model", model_name);
+    
+    // Start the agent to keep dock icon alive (macOS only, non-debug builds)
+    if cfg!(target_os = "macos") && !cfg!(debug_assertions) {
+        let _ = start_agent();
+    }
+    
+    Ok(())
+}
+
+pub async fn stop_model(model_name: &str) -> Result<(), String> {
+    use super::model_state::{get_state_file, ModelState};
+    
+    let state_file = get_state_file().map_err(|e| format!("Failed to get state file: {}", e))?;
+    let mut state = ModelState::load(&state_file)
+        .map_err(|e| format!("Failed to load model state: {}", e))?;
+    
+    state.cleanup_stale();
+    
+    let _model = state.remove_model(model_name)
+        .ok_or_else(|| format!("Model '{}' is not running", model_name))?;
+    
+    println!("✓ Stopped model '{}'", model_name);
+    
+    // Save state
+    state.save(&state_file)
+        .map_err(|e| format!("Failed to save model state: {}", e))?;
+    
+    // If no models are running, stop the server and agent
+    if state.is_empty() {
+        println!("  No models running, stopping server...");
+        let _ = stop_server_daemon();
+        
+        // Stop the agent (macOS only, non-debug builds)
+        if cfg!(target_os = "macos") && !cfg!(debug_assertions) {
+            let _ = stop_agent();
+        }
+    }
+    
+    Ok(())
+}
+
+pub fn list_running_models() -> Result<(), String> {
+    use super::model_state::{get_state_file, ModelState};
+    
+    let state_file = get_state_file().map_err(|e| format!("Failed to get state file: {}", e))?;
+    let mut state = ModelState::load(&state_file)
+        .map_err(|e| format!("Failed to load model state: {}", e))?;
+    
+    state.cleanup_stale();
+    
+    let models = state.list_models();
+    
+    if models.is_empty() {
+        println!("No models currently running.");
+        println!("\nStart a model with: tiles run <model-name>");
+        return Ok(());
+    }
+    
+    println!("Running models:\n");
+    println!("{:<20} {:<40} {:<10} {}", "NAME", "MODEL", "PID", "STARTED");
+    println!("{}", "-".repeat(90));
+    
+    for model in models {
+        println!("{:<20} {:<40} {:<10} {}", 
+            model.name, 
+            model.model_id, 
+            model.pid, 
+            model.started_at
+        );
+    }
+    
+    println!("\nUse 'tiles stop <model-name>' to stop a model");
+    
+    // Save cleaned state
+    state.save(&state_file)
+        .map_err(|e| format!("Failed to save model state: {}", e))?;
+    
+    Ok(())
 }
