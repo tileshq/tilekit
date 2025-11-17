@@ -1,13 +1,20 @@
+use crate::core::modelfile::Modelfile;
 use anyhow::{Context, Result};
+use owo_colors::OwoColorize;
 use reqwest::Client;
 use serde_json::{Value, json};
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::str::FromStr;
 use std::{env, fs};
 use std::{io, process::Command};
 
-use crate::core::modelfile::Modelfile;
+pub struct ChatResponse {
+    think: String,
+    reply: String,
+    code: String,
+}
 
 pub async fn run(modelfile: Modelfile) {
     let model = modelfile.from.as_ref().unwrap();
@@ -141,10 +148,28 @@ async fn run_model_with_server(modelfile: Modelfile) -> reqwest::Result<()> {
                 break;
             }
             _ => {
-                if let Ok(response) = chat(input, modelname).await {
-                    println!(">> {}", response)
-                } else {
-                    println!(">> failed to respond")
+                let mut remaining_count = 6;
+                let mut g_reply: String = "".to_owned();
+                loop {
+                    if remaining_count > 0 {
+                        let chat_start = if remaining_count == 6 { true } else { false };
+                        if let Ok(response) = chat(input, modelname, chat_start).await {
+                            if response.reply.is_empty() {
+                                remaining_count = remaining_count - 1;
+                                println!("{}", response.think.dimmed())
+                            } else {
+                                g_reply = response.reply.clone();
+                                println!(">> {}", response.reply.trim());
+                                break;
+                            }
+                        } else {
+                            println!(">> failed to respond");
+                            break;
+                        }
+                    }
+                }
+                if g_reply.is_empty() {
+                    println!(">> No reply")
                 }
             }
         }
@@ -178,10 +203,12 @@ async fn load_model(model_name: &str, memory_path: &str) -> Result<(), String> {
     }
 }
 
-async fn chat(input: &str, model_name: &str) -> Result<String, String> {
+async fn chat(input: &str, model_name: &str, chat_start: bool) -> Result<ChatResponse, String> {
     let client = Client::new();
+
     let body = json!({
         "model": model_name,
+        "chat_start": chat_start,
         "messages": [{"role": "user", "content": input}]
     });
     let res = client
@@ -197,9 +224,52 @@ async fn chat(input: &str, model_name: &str) -> Result<String, String> {
         let content = v["choices"][0]["message"]["content"]
             .as_str()
             .unwrap_or("<no content>");
-        Ok(content.to_owned())
+
+        Ok(convert_to_chat_response(content))
     } else {
         Err(String::from("request failed"))
+    }
+}
+
+fn convert_to_chat_response(content: &str) -> ChatResponse {
+    // content.split()
+    ChatResponse {
+        think: extract_think(content),
+        reply: extract_reply(content),
+        code: extract_python(content),
+    }
+}
+
+fn extract_reply(content: &str) -> String {
+    if content.contains("<reply>") && content.contains("</reply>") {
+        let list_a = content.split("<reply>").collect::<Vec<&str>>();
+        let list_b = list_a[1].split("</reply>").collect::<Vec<&str>>();
+        list_b[0].to_owned()
+    } else {
+        "".to_owned()
+    }
+}
+
+fn extract_python(content: &str) -> String {
+    if content.contains("<python>") && content.contains("</python>") {
+        let list_a = content.split("<python>").collect::<Vec<&str>>();
+        let list_b = list_a[1].split("</python>").collect::<Vec<&str>>();
+        list_b[0].to_owned()
+    } else {
+        "".to_owned()
+    }
+}
+
+fn extract_think(content: &str) -> String {
+    if content.contains("<think>") && content.contains("</think>") {
+        let list_a = content.split("<think>").collect::<Vec<&str>>();
+        let list_b = list_a[1].split("</think>").collect::<Vec<&str>>();
+        list_b[0].to_owned()
+    } else if content.contains("</think") {
+        let list_a = content.split("</think>").collect::<Vec<&str>>();
+        list_a[0].to_owned()
+    } else {
+        "".to_owned()
     }
 }
 

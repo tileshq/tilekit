@@ -22,7 +22,7 @@
 
 from fastapi import FastAPI, HTTPException
 from .config import SYSTEM_PROMPT
-
+import logging
 import json
 import time
 import uuid
@@ -40,6 +40,8 @@ from .mlx_runner import MLXRunner
 from server.mem_agent.utils import extract_python_code, extract_reply, extract_thoughts, create_memory_if_not_exists, format_results
 from server.mem_agent.engine import execute_sandboxed_code
 # Global model cache and configuration
+
+logger = logging.getLogger("app")
 _model_cache: Dict[str, MLXRunner] = {}
 _current_model_path: Optional[str] = None
 _default_max_tokens: Optional[int] = None  # Use dynamic model-aware limits by default
@@ -67,6 +69,7 @@ _messages: list[ChatMessage]= []
 class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
+    chat_start: bool
     max_tokens: Optional[int] = None
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 0.9
@@ -135,22 +138,21 @@ def get_or_load_model(model_spec: str, verbose: bool = False) -> MLXRunner:
     """Get model from cache or load it if not cached."""
     global _model_cache, _current_model_path
 
-    print(model_spec)
     # Use the existing model path resolution from cache_utils
 
     try:
         model_path, model_name, commit_hash = get_model_path(model_spec)
         if not model_path.exists():
+            logger.info(f"Model {model_spec} not found in cache")
             raise HTTPException(status_code=404, detail=f"Model {model_spec} not found in cache")
     except Exception as e:
+        logger.info(f"Model {model_spec} not found in: {str(e)}")
         raise HTTPException(status_code=404, detail=f"Model {model_spec} not found: {str(e)}")
 
     # Check if it's an MLX model
 
     model_path_str = str(model_path)
 
-    print(_current_model_path)
-    print(model_path_str)
     # Check if we need to load a different model
     if _current_model_path != model_path_str:
         # Proactively clean up any previously loaded runner to release memory
@@ -168,11 +170,14 @@ def get_or_load_model(model_spec: str, verbose: bool = False) -> MLXRunner:
         if verbose:
             print(f"Loading model: {model_name}")
 
+        logger.info(f"Loading model: {model_name}")
         runner = MLXRunner(model_path_str, verbose=verbose)
         runner.load_model()
 
         _model_cache[model_path_str] = runner
         _current_model_path = model_path_str
+    else:
+        logger.info(f"Model {model_name} already in memory")
 
     return _model_cache[model_path_str]
 
@@ -196,9 +201,10 @@ async def ping():
 async def start_model(request: StartRequest):
     """Load the model and start the agent"""
     global _messages, _runner,_memory_path
-    print(str(request))
+
     _messages = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
     _memory_path = request.memory_path
+
     try:
         _runner = get_or_load_model(request.model)
         return {"message": "Model loaded"}
@@ -226,7 +232,8 @@ async def create_chat_completion(request: ChatCompletionRequest):
 
         # Convert messages to dict format for runner
         # _messages.append(system_message)
-        _messages.extend(request.messages)
+        if request.chat_start:
+            _messages.extend(request.messages)
         message_dicts = format_chat_messages_for_runner(_messages)
         # Let the runner format with chat templates
         prompt = runner._format_conversation(message_dicts, use_chat_template=True)
@@ -241,14 +248,17 @@ async def create_chat_completion(request: ChatCompletionRequest):
         )
 
         # Token counting
-        # total_prompt = "\n\n".join([msg.content for msg in request.messages])
-        # prompt_tokens = count_tokens(total_prompt)
-        # completion_tokens = count_tokens(generated_text)
+        total_prompt = "\n\n".join([msg.content for msg in request.messages])
+        prompt_tokens = count_tokens(total_prompt)
+        completion_tokens = count_tokens(generated_text)
+
+        logger.info(f"prompt_token\n{prompt_tokens}")
+        logger.info(f"completion_tokens\n{completion_tokens}")
 
         thoughts = extract_thoughts(generated_text)
         reply = extract_reply(generated_text)
         python_code = extract_python_code(generated_text)
-        print(generated_text)
+
         result = ({}, "")
         if python_code:
             create_memory_if_not_exists()
@@ -258,36 +268,52 @@ async def create_chat_completion(request: ChatCompletionRequest):
                 import_module="server.mem_agent.tools",
             )
 
-        print(reply)
-        print(str(result))        
+        logger.info(f"Model thoughts\n{thoughts}")
+        logger.info(f"Model reply\n{reply}")
+        logger.info(f"Model python\n{python_code}")
+        logger.info(f"executed python result\n{str(result)}")
 
-        remaining_tool_turns = _max_tool_turns
-        while remaining_tool_turns > 0 and not reply:
-            _messages.append(ChatMessage(role="user", content=format_results(result[0], result[1])))
-            message_dicts = format_chat_messages_for_runner(_messages)
-            # Let the runner format with chat templates
-            prompt = runner._format_conversation(message_dicts, use_chat_template=True)
-            generated_text = runner.generate_batch(
-                prompt=prompt
-            )
-            print(generated_text)
-            # Extract the thoughts, reply and python code from the response
-            thoughts = extract_thoughts(generated_text)
-            reply = extract_reply(generated_text)
-            python_code = extract_python_code(generated_text)
+        # while remaining_tool_turns > 0 and not reply:
+        #     logger.info(f"Turn count\n{remaining_tool_turns}")
+        _messages.append(ChatMessage(role="user", content=format_results(result[0], result[1])))
+        message_dicts = format_chat_messages_for_runner(_messages)
+        #     # Let the runner format with chat templates
+        #     prompt = runner._format_conversation(message_dicts, use_chat_template=True)
+        #     generated_text = runner.generate_batch(
+        #         prompt=prompt
+        #     )
 
-            _messages.append(ChatMessage(role="assistant", content=generated_text))
-            if python_code:
-                create_memory_if_not_exists()
-                result = execute_sandboxed_code(
-                    code=python_code,
-                    allowed_path=_memory_path,
-                    import_module="server.mem_agent.tools",
-                )
-            else:
-                # Reset result when no Python code is executed
-                result = ({}, "")
-            remaining_tool_turns -= 1
+        #     total_prompt = "\n\n".join([msg.content for msg in _messages])
+        #     prompt_tokens = count_tokens(total_prompt)
+        #     completion_tokens = count_tokens(generated_text)
+
+        #     logger.info(f"prompt_token\n{prompt_tokens}")
+        #     logger.info(f"completion_tokens\n{completion_tokens}")
+
+        #     # print(generated_text)
+        #     # Extract the thoughts, reply and python code from the response
+        #     thoughts = extract_thoughts(generated_text)
+        #     reply = extract_reply(generated_text)
+        #     python_code = extract_python_code(generated_text)
+
+        #     logger.info(f"Model thoughts\n{thoughts}")
+        #     logger.info(f"Model reply\n{reply}")
+        #     logger.info(f"Model python\n{python_code}")
+
+        #     _messages.append(ChatMessage(role="assistant", content=generated_text))
+        #     if python_code:
+        #         create_memory_if_not_exists()
+        #         result = execute_sandboxed_code(
+        #             code=python_code,
+        #             allowed_path=_memory_path,
+        #             import_module="server.mem_agent.tools",
+        #         )
+        #         logger.info(f"executed python result\n{str(result)}")
+        #     else:
+        #         # Reset result when no Python code is executed
+        #         result = ({}, "")
+        #         logger.info(f"executed python result\n{str(result)}")
+        #     remaining_tool_turns -= 1
         
         return ChatCompletionResponse(
             id=completion_id,
@@ -298,7 +324,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": reply
+                        "content": generated_text
                     },
                     "finish_reason": "stop"
                 }
